@@ -1700,14 +1700,14 @@ static struct nf_hook_ops app_filter_ops[] __read_mostly = {
 		.hook = app_filter_hook,
 		.pf = NFPROTO_INET,
 		.hooknum = NF_INET_FORWARD,
-		.priority = NF_IP_PRI_MANGLE + 1,
+		.priority = NF_IP_PRI_MANGLE - 10,
 
 	},
 	{
 		.hook = app_filter_by_pass_hook,
 		.pf = NFPROTO_INET,
 		.hooknum = NF_INET_PRE_ROUTING,
-		.priority = NF_IP_PRI_MANGLE + 1,
+		.priority = NF_IP_PRI_MANGLE - 10,
 	},
 };
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
@@ -1716,26 +1716,26 @@ static struct nf_hook_ops app_filter_ops[] __read_mostly = {
 		.hook = app_filter_hook,
 		.pf = NFPROTO_IPV4,
 		.hooknum = NF_INET_FORWARD,
-		.priority = NF_IP_PRI_MANGLE + 1,
+		.priority = NF_IP_PRI_MANGLE - 10,
 	},
 	{
 		.hook = app_filter_by_pass_hook,
 		.pf = NFPROTO_IPV4,
 		.hooknum = NF_INET_PRE_ROUTING,
-		.priority = NF_IP_PRI_MANGLE + 1,
+		.priority = NF_IP_PRI_MANGLE - 10,
 	},
 	{
 		.hook = app_filter_hook,
 		.pf = NFPROTO_IPV6,
 		.hooknum = NF_INET_FORWARD,
-		.priority = NF_IP_PRI_MANGLE + 1,
+		.priority = NF_IP_PRI_MANGLE - 10,
 
 	},
 	{
 		.hook = app_filter_by_pass_hook,
 		.pf = NFPROTO_IPV6,
 		.hooknum = NF_INET_PRE_ROUTING,
-		.priority = NF_IP_PRI_MANGLE + 1,
+		.priority = NF_IP_PRI_MANGLE - 10,
 	},
 };
 #else
@@ -1745,14 +1745,14 @@ static struct nf_hook_ops app_filter_ops[] __read_mostly = {
 		.owner = THIS_MODULE,
 		.pf = NFPROTO_IPV4,
 		.hooknum = NF_INET_FORWARD,
-		.priority = NF_IP_PRI_MANGLE + 1,
+		.priority = NF_IP_PRI_MANGLE - 10,
 	},
 	{
 		.hook = app_filter_hook,
 		.owner = THIS_MODULE,
 		.pf = NFPROTO_IPV6,
 		.hooknum = NF_INET_FORWARD,
-		.priority = NF_IP_PRI_MANGLE + 1,
+		.priority = NF_IP_PRI_MANGLE - 10,
 	},
 };
 #endif
