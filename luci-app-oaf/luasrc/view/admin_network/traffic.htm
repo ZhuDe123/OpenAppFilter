@@ -162,15 +162,16 @@
         }
 
         var unit = currentPeriod == 'day' ? 'MB' : 'GB';
+        var isBar = currentPeriod != 'day';
         var option = {
             tooltip: { trigger: 'axis' },
             legend: { data: ['上传', '下载'], top: 5 },
             grid: { left: 60, right: 20, top: 40, bottom: 30 },
-            xAxis: { type: 'category', data: xData, boundaryGap: false },
+            xAxis: { type: 'category', data: xData, boundaryGap: isBar },
             yAxis: { type: 'value', name: unit },
             series: [
-                { name: '上传', type: 'line', data: upData, smooth: true, lineStyle: { color: '#337ab7' }, itemStyle: { color: '#337ab7' } },
-                { name: '下载', type: 'line', data: downData, smooth: true, lineStyle: { color: '#5cb85c' }, itemStyle: { color: '#5cb85c' } }
+                { name: '上传', type: isBar ? 'bar' : 'line', data: upData, smooth: !isBar, lineStyle: { color: '#337ab7' }, itemStyle: { color: '#337ab7' } },
+                { name: '下载', type: isBar ? 'bar' : 'line', data: downData, smooth: !isBar, lineStyle: { color: '#5cb85c' }, itemStyle: { color: '#5cb85c' } }
             ]
         };
 
@@ -196,7 +197,7 @@
             var ipsStr = d.ips.join('<br>');
             html += '<tr>' +
                 '<td class="ip-col"><strong>' + ipsStr + '</strong></td>' +
-                '<td style="font-family:monospace;font-size:12px;">' + (d.mac.startsWith('unknown_') ? '--' : d.mac) + '</td>' +
+                '<td>' + (d.mac.startsWith('unknown_') ? '--' : d.mac) + '</td>' +
                 '<td>' + (d.hostname || '--') + '</td>' +
                 '<td style="color:#337ab7;">' + formatBytes(d.upload) + '</td>' +
                 '<td style="color:#5cb85c;">' + formatBytes(d.download) + '</td>' +
@@ -312,7 +313,21 @@
         document.getElementById('period-month').classList.remove('active');
         document.getElementById('period-year').classList.remove('active');
         document.getElementById('period-' + period).classList.add('active');
-        document.getElementById('date-input').value = currentDate;
+        var dateInput = document.getElementById('date-input');
+        if (period == 'day') {
+            dateInput.type = 'date';
+            dateInput.value = currentDate;
+        } else if (period == 'month') {
+            dateInput.type = 'month';
+            dateInput.value = currentDate;
+        } else {
+            dateInput.type = 'number';
+            dateInput.min = '2020';
+            dateInput.max = '2099';
+            dateInput.step = '1';
+            dateInput.value = currentDate;
+            dateInput.placeholder = currentDate;
+        }
         loadTrafficData();
     }
 
