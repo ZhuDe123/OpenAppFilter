@@ -1,0 +1,397 @@
+<link rel="stylesheet" href="<%=resource%>/css/common.css">
+<% local dsp=require "luci.dispatcher" -%>
+
+<script type="text/javascript" src="<%=resource%>/echarts.min.js?v=5.0"></script>
+
+<style type="text/css">
+    #traffic-container { padding: 15px; }
+    #traffic-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 15px; }
+    #traffic-toolbar button { padding: 6px 16px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #fff; }
+    #traffic-toolbar button.active { background: #337ab7; color: #fff; border-color: #2e6da4; }
+    #traffic-chart { width: 100%; height: 350px; }
+    #traffic-summary { display: flex; gap: 20px; margin: 15px 0; font-size: 14px; }
+    #traffic-summary .stat-item { background: #f5f5f5; padding: 10px 20px; border-radius: 4px; }
+    #traffic-search { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; width: 200px; }
+    #traffic-filter select { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; }
+    .sort-arrow { cursor: pointer; user-select: none; }
+    .sort-arrow.active { color: #337ab7; font-weight: bold; }
+    .traffic-table td, .traffic-table th { padding: 8px 12px; text-align: left; white-space: nowrap; }
+</style>
+
+<script type="text/javascript">//<![CDATA[
+    var chartInstance = null;
+    var pollTimer = null;
+    var pollInterval = 60000;  // 60 秒刷新
+    var currentPeriod = 'day';
+    var currentDate = '';
+    var ipAllData = [];
+    var currentPage = 1;
+    var pageSize = 10;
+    var searchTerm = '';
+    var ipFilter = 'all';
+    var sortField = 'total';
+    var sortOrder = 'desc';
+
+    // ==== 工具函数 ====
+
+    function formatBytes(bytes) {
+        if (!bytes || bytes < 0) return '0 B';
+        bytes = Math.round(bytes);
+        if (bytes < 1024) return bytes + ' B';
+        else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+        else if (bytes < 1073741824) return (bytes / (1048576)).toFixed(1) + ' MB';
+        else if (bytes < 1099511627776) return (bytes / (1073741824)).toFixed(1) + ' GB';
+        else return (bytes / 1099511627776).toFixed(1) + ' TB';
+    }
+
+    function getToday() {
+        var now = new Date();
+        return now.getFullYear() + '-' + 
+               String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+               String(now.getDate()).padStart(2, '0');
+    }
+
+    function getThisMonth() { return getToday().substring(0, 7); }
+    function getThisYear() { return getToday().substring(0, 4); }
+
+    function getDefaultDate() {
+        if (currentPeriod == 'day') return getToday();
+        if (currentPeriod == 'month') return getThisMonth();
+        return getThisYear();
+    }
+
+    // ==== 前端聚合：按数据量调整分钟粒度 ====
+    function aggregateMinuteData(data) {
+        if (!data || data.length <= 60) return data;
+        var interval = data.length <= 300 ? 10 : data.length <= 720 ? 30 : 60;
+        var result = [], bucket = null;
+        for (var i = 0; i < data.length; i++) {
+            var t = data[i].time.split(':');
+            var h = parseInt(t[0]) || 0, m = parseInt(t[1]) || 0;
+            var bm = Math.floor(m / interval) * interval;
+            var bt = String(h).padStart(2, '0') + ':' + String(bm).padStart(2, '0');
+            if (!bucket || bucket.time != bt) {
+                if (bucket) result.push(bucket);
+                bucket = { time: bt, upload: data[i].upload || 0, download: data[i].download || 0 };
+            } else {
+                bucket.upload += (data[i].upload || 0);
+                bucket.download += (data[i].download || 0);
+            }
+        }
+        if (bucket) result.push(bucket);
+        return result;
+    }
+
+    // ==== 按 MAC 聚合 IP 数据 ====
+    function aggregateByMAC(ipList) {
+        var macMap = {};
+        for (var i = 0; i < ipList.length; i++) {
+            var d = ipList[i];
+            var mac = d.mac || ('unknown_' + (d.ip || ''));
+            if (!macMap[mac]) {
+                macMap[mac] = { ips: [], mac: mac, hostname: d.hostname || '', upload: 0, download: 0 };
+            }
+            if (d.ip && macMap[mac].ips.indexOf(d.ip) < 0) macMap[mac].ips.push(d.ip);
+            macMap[mac].upload += (d.upload || 0);
+            macMap[mac].download += (d.download || 0);
+            if (d.hostname) macMap[mac].hostname = d.hostname;
+        }
+        var result = [];
+        for (var key in macMap) {
+            if (macMap.hasOwnProperty(key)) result.push(macMap[key]);
+        }
+        return result;
+    }
+
+    // ==== 获取过滤和排序后的 IP 列表 ====
+    function getFilteredSortedIPs() {
+        var data = aggregateByMAC(ipAllData);
+        // 搜索过滤
+        if (searchTerm) {
+            var term = searchTerm.toLowerCase();
+            data = data.filter(function(d) {
+                return d.mac.toLowerCase().indexOf(term) >= 0 ||
+                       d.hostname.toLowerCase().indexOf(term) >= 0 ||
+                       d.ips.some(function(ip) { return ip.indexOf(term) >= 0; });
+            });
+        }
+        // IPv4/v6 过滤
+        if (ipFilter == 'ipv4') {
+            data = data.filter(function(d) { return d.ips.some(function(ip) { return ip.indexOf('.') >= 0; }); });
+        } else if (ipFilter == 'ipv6') {
+            data = data.filter(function(d) { return d.ips.some(function(ip) { return ip.indexOf(':') >= 0; }); });
+        }
+        // 排序
+        data.sort(function(a, b) {
+            var va = (sortField == 'upload' ? a.upload : sortField == 'download' ? a.download : (a.upload + a.download));
+            var vb = (sortField == 'upload' ? b.upload : sortField == 'download' ? b.download : (b.upload + b.download));
+            return sortOrder == 'asc' ? va - vb : vb - va;
+        });
+        return data;
+    }
+
+    // ==== 渲染图表 ====
+    function renderChart(data) {
+        var container = document.getElementById('traffic-chart');
+        if (!container) return;
+
+        var xData = [], upData = [], downData = [];
+        if (currentPeriod == 'day') {
+            var minutes = data.minute || [];
+            minutes = aggregateMinuteData(minutes);
+            for (var i = 0; i < minutes.length; i++) {
+                xData.push(minutes[i].time);
+                upData.push(Math.round((minutes[i].upload || 0) / 1048576 * 10) / 10);
+                downData.push(Math.round((minutes[i].download || 0) / 1048576 * 10) / 10);
+            }
+        } else if (currentPeriod == 'month') {
+            var days = data.daily || [];
+            for (var i = 0; i < days.length; i++) {
+                xData.push((days[i].date || '').substring(8));
+                upData.push(Math.round((days[i].upload || 0) / 1073741824 * 10) / 10);
+                downData.push(Math.round((days[i].download || 0) / 1073741824 * 10) / 10);
+            }
+        } else {
+            var months = data.monthly || [];
+            for (var i = 0; i < months.length; i++) {
+                xData.push((months[i].month || '').substring(5));
+                upData.push(Math.round((months[i].upload || 0) / 1073741824 * 10) / 10);
+                downData.push(Math.round((months[i].download || 0) / 1073741824 * 10) / 10);
+            }
+        }
+
+        var unit = currentPeriod == 'day' ? 'MB' : 'GB';
+        var option = {
+            tooltip: { trigger: 'axis' },
+            legend: { data: ['<%:Upload%>', '<%:Download%>'], top: 5 },
+            grid: { left: 60, right: 20, top: 40, bottom: 30 },
+            xAxis: { type: 'category', data: xData, boundaryGap: false },
+            yAxis: { type: 'value', name: unit },
+            series: [
+                { name: '<%:Upload%>', type: 'line', data: upData, smooth: true, lineStyle: { color: '#337ab7' }, itemStyle: { color: '#337ab7' } },
+                { name: '<%:Download%>', type: 'line', data: downData, smooth: true, lineStyle: { color: '#5cb85c' }, itemStyle: { color: '#5cb85c' } }
+            ]
+        };
+
+        if (!chartInstance) {
+            chartInstance = echarts.init(container);
+        }
+        chartInstance.setOption(option);
+    }
+
+    // ==== 渲染 IP 表格 ====
+    function renderIPTable() {
+        var filtered = getFilteredSortedIPs();
+        var totalPages = Math.ceil(filtered.length / pageSize) || 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+        var start = (currentPage - 1) * pageSize;
+        var pageData = filtered.slice(start, start + pageSize);
+
+        var tbody = document.getElementById('ip-table-body');
+        if (!tbody) return;
+        var html = '';
+        for (var i = 0; i < pageData.length; i++) {
+            var d = pageData[i];
+            var ipsStr = d.ips.join('<br>');
+            html += '<tr>' +
+                '<td><strong>' + ipsStr + '</strong></td>' +
+                '<td style="font-family:monospace;font-size:12px;">' + (d.mac.startsWith('unknown_') ? '--' : d.mac) + '</td>' +
+                '<td>' + (d.hostname || '--') + '</td>' +
+                '<td style="color:#337ab7;">' + formatBytes(d.upload) + '</td>' +
+                '<td style="color:#5cb85c;">' + formatBytes(d.download) + '</td>' +
+                '<td><strong>' + formatBytes(d.upload + d.download) + '</strong></td>' +
+                '</tr>';
+        }
+        tbody.innerHTML = html;
+
+        // 更新汇总
+        renderSummary(filtered);
+
+        // 渲染分页
+        renderPagination(totalPages);
+    }
+
+    // ==== 渲染汇总 ====
+    function renderSummary(data) {
+        var totalUp = 0, totalDown = 0;
+        for (var i = 0; i < data.length; i++) {
+            totalUp += data[i].upload;
+            totalDown += data[i].download;
+        }
+        var el = document.getElementById('traffic-summary');
+        if (el) {
+            el.innerHTML = '<div class="stat-item"><%:Upload%>: <strong style="color:#337ab7;">' + formatBytes(totalUp) + '</strong></div>' +
+                           '<div class="stat-item"><%:Download%>: <strong style="color:#5cb85c;">' + formatBytes(totalDown) + '</strong></div>' +
+                           '<div class="stat-item"><%:Total%>: <strong>' + formatBytes(totalUp + totalDown) + '</strong></div>';
+        }
+    }
+
+    // ==== 渲染分页 ====
+    function renderPagination(totalPages) {
+        var el = document.getElementById('ip-pagination');
+        if (!el || totalPages <= 1) { if (el) el.innerHTML = ''; return; }
+        var html = '<span style="margin-right:8px;"><%:Page%>: ' + currentPage + '/' + totalPages + '</span>';
+        html += '<button onclick="goToPage(1)" ' + (currentPage <= 1 ? 'disabled' : '') + '>«</button>';
+        html += '<button onclick="goToPage(' + (currentPage - 1) + ')" ' + (currentPage <= 1 ? 'disabled' : '') + '>‹</button>';
+        var maxShow = 5;
+        var s = Math.max(1, currentPage - 2);
+        var e = Math.min(totalPages, s + maxShow - 1);
+        s = Math.max(1, e - maxShow + 1);
+        for (var i = s; i <= e; i++) {
+            html += '<button onclick="goToPage(' + i + ')" ' + (i == currentPage ? 'class="active" style="background:#337ab7;color:#fff;"' : '') + '>' + i + '</button>';
+        }
+        html += '<button onclick="goToPage(' + (currentPage + 1) + ')" ' + (currentPage >= totalPages ? 'disabled' : '') + '>›</button>';
+        html += '<button onclick="goToPage(' + totalPages + ')" ' + (currentPage >= totalPages ? 'disabled' : '') + '>»</button>';
+        el.innerHTML = html;
+    }
+
+    function goToPage(p) {
+        currentPage = p;
+        renderIPTable();
+    }
+
+    // ==== 设置排序 ====
+    function setSort(field) {
+        if (sortField == field) {
+            sortOrder = sortOrder == 'asc' ? 'desc' : 'asc';
+        } else {
+            sortField = field;
+            sortOrder = 'desc';
+        }
+        renderIPTable();
+        updateSortArrows();
+    }
+
+    function updateSortArrows() {
+        var arrows = document.querySelectorAll('.sort-arrow');
+        for (var i = 0; i < arrows.length; i++) {
+            var f = arrows[i].getAttribute('data-field');
+            arrows[i].classList.remove('active');
+            arrows[i].innerHTML = ' ↕';
+        }
+        var active = document.querySelector('.sort-arrow[data-field="' + sortField + '"]');
+        if (active) {
+            active.classList.add('active');
+            active.innerHTML = sortOrder == 'asc' ? ' ↑' : ' ↓';
+        }
+    }
+
+    // ==== 加载数据 ====
+    function loadTrafficData() {
+        var date = currentDate || getDefaultDate();
+        var url = '<%=dsp.build_url("admin/network/traffic_stats")%>';
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', url + '?period=' + currentPeriod + '&date=' + date, true);
+        xhr.onload = function() {
+            if (xhr.status == 200) {
+                try {
+                    var data = JSON.parse(xhr.responseText);
+                    ipAllData = data.ip || [];
+                    renderChart(data);
+                    renderIPTable();
+                } catch(e) {
+                    console.error('[Traffic] Parse error:', e);
+                }
+            }
+        };
+        xhr.send();
+    }
+
+    // ==== 切换视图 ====
+    function switchPeriod(period) {
+        currentPeriod = period;
+        currentDate = getDefaultDate();
+        currentPage = 1;
+        document.getElementById('period-day').classList.remove('active');
+        document.getElementById('period-month').classList.remove('active');
+        document.getElementById('period-year').classList.remove('active');
+        document.getElementById('period-' + period).classList.add('active');
+        document.getElementById('date-input').value = currentDate;
+        loadTrafficData();
+    }
+
+    // ==== 日期变更 ====
+    function onDateChange() {
+        currentDate = document.getElementById('date-input').value;
+        currentPage = 1;
+        loadTrafficData();
+    }
+
+    function onSearchChange() {
+        searchTerm = document.getElementById('traffic-search').value;
+        currentPage = 1;
+        renderIPTable();
+    }
+
+    function onFilterChange() {
+        ipFilter = document.getElementById('traffic-filter').value;
+        currentPage = 1;
+        renderIPTable();
+    }
+
+    // ==== 页面初始化 ====
+    window.addEventListener('load', function() {
+        currentDate = getDefaultDate();
+        document.getElementById('date-input').value = currentDate;
+        loadTrafficData();
+
+        // 自动刷新
+        pollTimer = setInterval(function() {
+            if (!document.getElementById('traffic-chart')) {
+                clearInterval(pollTimer);
+                return;
+            }
+            loadTrafficData();
+        }, pollInterval);
+
+        // 窗口大小变化时重绘图表
+        window.addEventListener('resize', function() {
+            if (chartInstance) chartInstance.resize();
+        });
+    });
+
+    // 页面离开清理
+    window.addEventListener('beforeunload', function() {
+        if (pollTimer) clearInterval(pollTimer);
+        if (chartInstance) chartInstance.dispose();
+    });
+//]]></script>
+
+<div id="traffic-container">
+    <div id="traffic-toolbar">
+        <button id="period-day" class="active" onclick="switchPeriod('day')"><%:Day%></button>
+        <button id="period-month" onclick="switchPeriod('month')"><%:Month%></button>
+        <button id="period-year" onclick="switchPeriod('year')"><%:Year%></button>
+        <input type="date" id="date-input" style="padding:6px 10px;border:1px solid #ccc;border-radius:4px;" onchange="onDateChange()">
+        <span style="margin-left:auto;font-size:12px;color:#888;"><%:Auto refresh%>: 60s</span>
+    </div>
+
+    <div id="traffic-chart"></div>
+
+    <div id="traffic-summary"></div>
+
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">
+        <input type="text" id="traffic-search" placeholder="<%:Search IP/MAC/Hostname%>" oninput="onSearchChange()">
+        <select id="traffic-filter" onchange="onFilterChange()">
+            <option value="all"><%:All%></option>
+            <option value="ipv4">IPv4</option>
+            <option value="ipv6">IPv6</option>
+        </select>
+    </div>
+
+    <table class="table cbi-section-table traffic-table">
+        <tr class="tr table-titles">
+            <th class="th"><%:IP Address%></th>
+            <th class="th"><%:MAC%></th>
+            <th class="th"><%:Hostname%></th>
+            <th class="th sort-arrow" data-field="upload" onclick="setSort('upload')"><%:Upload%> ↕</th>
+            <th class="th sort-arrow" data-field="download" onclick="setSort('download')"><%:Download%> ↕</th>
+            <th class="th sort-arrow active" data-field="total" onclick="setSort('total')"><%:Total%> ↓</th>
+        </tr>
+        <tbody id="ip-table-body">
+            <tr><td colspan="6" style="text-align:center;"><em><%:Loading...%></em></td></tr>
+        </tbody>
+    </table>
+
+    <div id="ip-pagination" style="display:flex;justify-content:center;margin-top:10px;gap:4px;"></div>
+</div>

@@ -21,6 +21,9 @@ function index()
 
 	entry({"admin", "services", "appfilter", "user"}, cbi("appfilter/user", {hideapplybtn=true, hidesavebtn=true, hideresetbtn=true}), _("User Configuration"), 24).leaf=true
 	entry({"admin", "services", "appfilter", "advance"}, cbi("appfilter/advance", {hideapplybtn=true, hidesavebtn=true, hideresetbtn=true}), _("Advanced Settings"), 27).leaf=true
+	entry({"admin", "services", "appfilter", "traffic"}, template("admin_network/traffic"), _("Traffic Statistics"), 30).leaf=true
+	entry({"admin", "services", "appfilter", "traffic_config"}, cbi("appfilter/traffic_config", {hideapplybtn=true, hidesavebtn=true, hideresetbtn=true}), _("Traffic Config"), 31).leaf=true
+	entry({"admin", "network", "traffic_stats"}, call("traffic_stats"), nil).leaf = true
 	entry({"admin", "network", "user_status"}, call("user_status"), nil).leaf = true
 	entry({"admin", "network", "get_user_list"}, call("get_user_list"), nil).leaf = true
 	entry({"admin", "network", "dev_visit_list"}, call("get_dev_visit_list"), nil).leaf = true
@@ -570,4 +573,80 @@ function get_feature_class_list()
 	else
 		luci.http.write(json.stringify({class_list = {}}))
 	end
+end
+
+-- OAF 流量统计 RPC 端点
+function traffic_stats()
+	local json = require "luci.jsonc"
+	local sys = require "luci.sys"
+	local utl = require "luci.util"
+	luci.http.prepare_content("application/json")
+
+	local DB_PATH = '/tmp/oaf/traffic.db'
+
+	-- 检查数据库是否存在
+	local nfs = require "nixio.fs"
+	if not nfs.access(DB_PATH) then
+		luci.http.write(json.stringify({minute={}, global={}, ip={}}))
+		return
+	end
+
+	local function sqlite_query(sql)
+		local cmd = string.format("sqlite3 -json %s %s 2>/dev/null",
+			utl.shellquote(DB_PATH),
+			utl.shellquote(sql))
+		local result = sys.exec(cmd)
+		if result and result ~= "" and result ~= "[]" then
+			local parsed = json.parse(result)
+			if parsed then return parsed end
+		end
+		return {}
+	end
+
+	local period = luci.http.formvalue("period") or "day"
+	local date_val = luci.http.formvalue("date") or ""
+
+	if period ~= "day" and period ~= "month" and period ~= "year" then
+		period = "day"
+	end
+
+	if date_val == "" then
+		if period == "day" then
+			date_val = os.date("%Y-%m-%d")
+		elseif period == "month" then
+			date_val = os.date("%Y-%m")
+		else
+			date_val = os.date("%Y")
+		end
+	end
+
+	local result = {}
+
+	if period == "year" then
+		result.monthly = sqlite_query(
+			string.format("SELECT month, upload, download FROM traffic_monthly WHERE month LIKE '%s-%%' ORDER BY month;", date_val))
+		result.yearly = sqlite_query(
+			string.format("SELECT year, upload, download FROM traffic_yearly WHERE year = '%s';", date_val))
+		result.ip = sqlite_query(
+			string.format("SELECT ip, mac, hostname, SUM(upload) as upload, SUM(download) as download FROM traffic_ip_daily WHERE date LIKE '%s-%%' GROUP BY ip ORDER BY (upload+download) DESC LIMIT 200;", date_val))
+
+	elseif period == "month" then
+		result.daily = sqlite_query(
+			string.format("SELECT date, upload, download FROM traffic_daily WHERE date LIKE '%s-%%' ORDER BY date;", date_val))
+		result.monthly = sqlite_query(
+			string.format("SELECT month, upload, download FROM traffic_monthly WHERE month = '%s';", date_val))
+		result.ip = sqlite_query(
+			string.format("SELECT ip, mac, hostname, SUM(upload) as upload, SUM(download) as download FROM traffic_ip_daily WHERE date LIKE '%s-%%' GROUP BY ip ORDER BY (upload+download) DESC LIMIT 200;", date_val))
+
+	else
+		local now_time = os.date("%H:%M")
+		result.minute = sqlite_query(
+			string.format("SELECT time, upload, download FROM traffic_minute WHERE date = '%s' AND time <= '%s' ORDER BY time;", date_val, now_time))
+		result.global = sqlite_query(
+			string.format("SELECT date, upload, download, updated_at FROM traffic_daily WHERE date = '%s';", date_val))
+		result.ip = sqlite_query(
+			string.format("SELECT ip, mac, hostname, upload, download FROM traffic_ip_daily WHERE date = '%s' ORDER BY (upload+download) DESC LIMIT 200;", date_val))
+	end
+
+	luci.http.write(json.stringify(result))
 end

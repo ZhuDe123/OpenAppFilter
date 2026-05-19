@@ -287,33 +287,26 @@
 			}
 		}
 
-		function formatFlow(kb) {
-			if (kb === undefined || kb === null || kb === '') {
-				return '0 KB';
+		function formatFlow(bytes) {
+			if (bytes === undefined || bytes === null || bytes === '') {
+				return '0 B';
 			}
-			// Use parseFloat to handle large numbers correctly
-			var totalKB = parseFloat(kb);
-			if (isNaN(totalKB) || totalKB < 0) {
-				return '0 KB';
+			var totalBytes = parseFloat(bytes);
+			if (isNaN(totalBytes) || totalBytes < 0) {
+				return '0 B';
 			}
-			// Round to integer for KB
-			totalKB = Math.round(totalKB);
-			if (totalKB === 0) {
-				return '0 KB';
+			totalBytes = Math.round(totalBytes);
+			if (totalBytes === 0) {
+				return '0 B';
 			}
-			// Convert to appropriate unit (input is in KB)
-			if (totalKB < 1024) {
-				// KB - no decimal
-				return totalKB + ' KB';
-			} else if (totalKB < 1024 * 1024) {
-				// MB - one decimal
-				return (totalKB / 1024).toFixed(1) + ' MB';
-			} else if (totalKB < 1024 * 1024 * 1024) {
-				// GB - one decimal
-				return (totalKB / (1024 * 1024)).toFixed(1) + ' GB';
+			if (totalBytes < 1024) {
+				return totalBytes + ' B';
+			} else if (totalBytes < 1024 * 1024) {
+				return (totalBytes / 1024).toFixed(1) + ' KB';
+			} else if (totalBytes < 1024 * 1024 * 1024) {
+				return (totalBytes / (1024 * 1024)).toFixed(1) + ' MB';
 			} else {
-				// TB - one decimal
-				return (totalKB / (1024 * 1024 * 1024)).toFixed(1) + ' TB';
+				return (totalBytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
 			}
 		}
 

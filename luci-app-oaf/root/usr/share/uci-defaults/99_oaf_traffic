@@ -1,0 +1,16 @@
+# OAF 流量统计默认配置
+# 首次安装时自动创建 /etc/config/appfilter 中的 traffic 段
+
+if [ ! "$(uci -q get appfilter.traffic)" = "traffic" ]; then
+    uci -q add appfilter traffic
+    uci set appfilter.traffic.enabled='1'
+    uci set appfilter.traffic.collect_interval='60'
+    uci set appfilter.traffic.persist_interval='30'
+    uci set appfilter.traffic.retain_minutes='1'
+    uci set appfilter.traffic.retain_days='90'
+    uci set appfilter.traffic.retain_months='12'
+    uci set appfilter.traffic.retain_years='5'
+    uci commit appfilter
+fi
+
+exit 0
