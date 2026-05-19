@@ -20,11 +20,11 @@ PASS=0
 FAIL=0
 WARN=0
 
-pass() { echo "  ${GREEN}[✓]${NC} $1"; PASS=$((PASS + 1)); }
-fail() { echo "  ${RED}[✗]${NC} $1"; FAIL=$((FAIL + 1)); }
-warn() { echo "  ${YELLOW}[!]${NC} $1"; WARN=$((WARN + 1)); }
-info() { echo "  ${CYAN}[i]${NC} $1"; }
-fix()  { echo "  ${YELLOW}[修复]${NC} $1"; }
+pass() { echo -e "  ${GREEN}[✓]${NC} $1"; PASS=$((PASS + 1)); }
+fail() { echo -e "  ${RED}[✗]${NC} $1"; FAIL=$((FAIL + 1)); }
+warn() { echo -e "  ${YELLOW}[!]${NC} $1"; WARN=$((WARN + 1)); }
+info() { echo -e "  ${CYAN}[i]${NC} $1"; }
+fix()  { echo -e "  ${YELLOW}[修复]${NC} $1"; }
 
 echo "========================================"
 echo "  OAF 流量统计诊断脚本"
@@ -214,7 +214,7 @@ else
 fi
 
 # 检查进程
-TRAFFIC_PID=$(pgrep -f "traffic.uc\|oaf-traffic-collect" 2>/dev/null || true)
+TRAFFIC_PID=$(pgrep -f "traffic.uc" 2>/dev/null || pgrep -f "oaf-traffic-collect" 2>/dev/null || true)
 if [ -n "$TRAFFIC_PID" ]; then
     pass "流量采集进程运行中 (PID: $TRAFFIC_PID)"
 else
@@ -247,7 +247,7 @@ else
     if [ "$AUTO_FIX" = "1" ]; then
         fix "创建默认配置..."
         if [ -f /usr/share/uci-defaults/99_oaf_traffic ]; then
-            sh /usr/share/uci-defaults/99_oaf_traffic
+            sh /etc/uci-defaults/99_oaf_traffic
             fix "已执行 uci-defaults 脚本"
         fi
     fi
@@ -258,7 +258,7 @@ INTERVAL=$(uci get appfilter.traffic.collect_interval 2>/dev/null || echo "60")
 PERSIST=$(uci get appfilter.traffic.persist_interval 2>/dev/null || echo "30")
 RETAIN_DAYS=$(uci get appfilter.traffic.retain_days 2>/dev/null || echo "90")
 
-echo "  enabled           = $ENABLED $([ "$ENABLED" = "1" ] && echo "${GREEN}✓${NC}" || echo "${RED}✗ 应为1${NC}")"
+echo -e "  enabled           = $ENABLED $([ "$ENABLED" = "1" ] && echo -e "${GREEN}✓${NC}" || echo -e "${RED}✗ 应为1${NC}")"
 echo "  collect_interval  = ${INTERVAL}s"
 echo "  persist_interval  = ${PERSIST}min"
 echo "  retain_days       = $RETAIN_DAYS 天"
@@ -405,8 +405,8 @@ if [ -f "$LOG_FILE" ]; then
     if [ "$ERROR_COUNT" -gt 0 ]; then
         warn "日志中发现 $ERROR_COUNT 条错误/警告"
         info "最近的错误:"
-        grep -i "error\|fail" "$LOG_FILE" 2>/dev/null | tail -n 3 | while read line; do
-            echo "    ${RED}$line${NC}"
+        grep -i -E "error|fail|warning" "$LOG_FILE" 2>/dev/null | tail -n 3 | while read line; do
+            echo -e "    ${RED}$line${NC}"
         done
     fi
 else
@@ -422,8 +422,8 @@ echo "── 10. 手动采集测试 ──"
 
 if [ -f /etc/oaf/ucode/traffic.uc ]; then
     info "手动运行一次采集（命令: ucode /etc/oaf/ucode/traffic.uc collect）..."
-    RESULT=$(ucode /etc/oaf/ucode/traffic.uc collect 2>&1 || true)
-    if echo "$RESULT" | grep -q "Collect OK"; then
+    RESULT=$(ucode /etc/oaf/ucode/traffic.uc collect 2>&1; EXIT_CODE=$?)
+    if [ "$EXIT_CODE" -eq 0 ] && echo "$RESULT" | grep -q "Collect OK"; then
         pass "手动采集成功: $RESULT"
     elif echo "$RESULT" | grep -q "skipping"; then
         warn "采集被跳过（可能锁未释放）: $RESULT"
@@ -443,7 +443,7 @@ if [ -f /etc/oaf/ucode/traffic.uc ]; then
             fi
         fi
     else
-        fail "手动采集失败: $RESULT"
+        fail "手动采集失败 (exit=$EXIT_CODE): $RESULT"
     fi
 else
     warn "traffic.uc 不存在，跳过手动测试"
@@ -458,16 +458,16 @@ echo "  通过: $PASS  警告: $WARN  失败: $FAIL"
 echo ""
 
 if [ "$FAIL" -gt 0 ]; then
-    echo "  ${RED}存在 $FAIL 个严重问题需要修复${NC}"
+    echo -e "  ${RED}存在 $FAIL 个严重问题需要修复${NC}"
     echo "  建议执行: sh $0 --fix"
 fi
 
 if [ "$FAIL" -eq 0 ] && [ "$WARN" -gt 0 ]; then
-    echo "  ${YELLOW}基本正常，有 $WARN 个警告需要关注${NC}"
+    echo -e "  ${YELLOW}基本正常，有 $WARN 个警告需要关注${NC}"
 fi
 
 if [ "$FAIL" -eq 0 ] && [ "$WARN" -eq 0 ]; then
-    echo "  ${GREEN}流量统计功能一切正常！${NC}"
+    echo -e "  ${GREEN}流量统计功能一切正常！${NC}"
 fi
 
 echo ""

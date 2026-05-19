@@ -254,6 +254,7 @@ function collect_traffic() {
         popen(cmd)?.close();
 
         log(sprintf("Collect OK | Global UP=%d DOWN=%d | Devices=%d", up_delta, down_delta, length(devices)));
+        print("Collect OK\n");
 
         // ===== 自动清理旧数据 =====
         let last_clean = uci_get_int('traffic', 'last_cleanup', 0);
@@ -290,6 +291,7 @@ function persist() {
     mkdir('/etc/oaf', 0755);
     popen(sprintf("sqlite3 %s '.backup %s'", sq(DB_PATH), sq(PERSIST_DB)))?.close();
     chmod(PERSIST_DB, 0600);
+    system("touch " + sq(PERSIST_DB));
     log("Backup to flash successful");
 }
 

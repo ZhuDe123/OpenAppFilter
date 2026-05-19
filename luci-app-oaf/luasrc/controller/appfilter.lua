@@ -22,8 +22,9 @@ function index()
 	entry({"admin", "services", "appfilter", "user"}, cbi("appfilter/user", {hideapplybtn=true, hidesavebtn=true, hideresetbtn=true}), _("User Configuration"), 24).leaf=true
 	entry({"admin", "services", "appfilter", "advance"}, cbi("appfilter/advance", {hideapplybtn=true, hidesavebtn=true, hideresetbtn=true}), _("Advanced Settings"), 27).leaf=true
 	entry({"admin", "services", "appfilter", "traffic"}, template("admin_network/traffic"), _("Traffic Statistics"), 30).leaf=true
-	entry({"admin", "services", "appfilter", "traffic_config"}, cbi("appfilter/traffic_config", {hideapplybtn=true, hidesavebtn=true, hideresetbtn=true}), _("Traffic Config"), 31).leaf=true
 	entry({"admin", "network", "traffic_stats"}, call("traffic_stats"), nil).leaf = true
+	entry({"admin", "network", "traffic_config_get"}, call("traffic_config_get"), nil).leaf = true
+	entry({"admin", "network", "traffic_config_set"}, call("traffic_config_set"), nil).leaf = true
 	entry({"admin", "network", "user_status"}, call("user_status"), nil).leaf = true
 	entry({"admin", "network", "get_user_list"}, call("get_user_list"), nil).leaf = true
 	entry({"admin", "network", "dev_visit_list"}, call("get_dev_visit_list"), nil).leaf = true
@@ -649,4 +650,39 @@ function traffic_stats()
 	end
 
 	luci.http.write(json.stringify(result))
+end
+
+-- OAF 流量统计配置读写 RPC
+function traffic_config_get()
+	local uci = require "luci.model.uci".cursor()
+	luci.http.prepare_content("application/json")
+	local json = require "luci.jsonc"
+	local config = {
+		enabled = uci:get("appfilter", "traffic", "enabled") or "1",
+		collect_interval = uci:get("appfilter", "traffic", "collect_interval") or "60",
+		persist_interval = uci:get("appfilter", "traffic", "persist_interval") or "30",
+		retain_minutes = uci:get("appfilter", "traffic", "retain_minutes") or "1",
+		retain_days = uci:get("appfilter", "traffic", "retain_days") or "90",
+		retain_months = uci:get("appfilter", "traffic", "retain_months") or "12",
+		retain_years = uci:get("appfilter", "traffic", "retain_years") or "5",
+	}
+	luci.http.write(json.stringify(config))
+end
+
+function traffic_config_set()
+	local uci = require "luci.model.uci".cursor()
+	luci.http.prepare_content("application/json")
+	local json = require "luci.jsonc"
+	if not uci:get("appfilter", "traffic") then
+		uci:section("appfilter", "traffic", "traffic", {})
+	end
+	local fields = {"enabled", "collect_interval", "persist_interval", "retain_minutes", "retain_days", "retain_months", "retain_years"}
+	for _, f in ipairs(fields) do
+		local v = luci.http.formvalue(f)
+		if v then
+			uci:set("appfilter", "traffic", f, v)
+		end
+	end
+	uci:commit("appfilter")
+	luci.http.write(json.stringify({success = true}))
 end

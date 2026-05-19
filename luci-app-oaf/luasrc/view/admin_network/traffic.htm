@@ -329,11 +329,61 @@
         renderIPTable();
     }
 
+    // ==== 加载配置 ====
+    function loadConfig() {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '<%=dsp.build_url("admin/network/traffic_config_get")%>', true);
+        xhr.onload = function() {
+            if (xhr.status == 200) {
+                try {
+                    var cfg = JSON.parse(xhr.responseText);
+                    document.getElementById('cfg-enabled').checked = (cfg.enabled == '1');
+                    document.getElementById('cfg-interval').value = cfg.collect_interval || '60';
+                    document.getElementById('cfg-persist').value = cfg.persist_interval || '30';
+                    document.getElementById('cfg-retain-min').value = cfg.retain_minutes || '1';
+                    document.getElementById('cfg-retain-day').value = cfg.retain_days || '90';
+                    document.getElementById('cfg-retain-mon').value = cfg.retain_months || '12';
+                    document.getElementById('cfg-retain-yr').value = cfg.retain_years || '5';
+                } catch(e) {}
+            }
+        };
+        xhr.send();
+    }
+
+    function saveConfig() {
+        var btn = document.getElementById('cfg-save-btn');
+        var params = 'enabled=' + (document.getElementById('cfg-enabled').checked ? '1' : '0') +
+            '&collect_interval=' + document.getElementById('cfg-interval').value +
+            '&persist_interval=' + document.getElementById('cfg-persist').value +
+            '&retain_minutes=' + document.getElementById('cfg-retain-min').value +
+            '&retain_days=' + document.getElementById('cfg-retain-day').value +
+            '&retain_months=' + document.getElementById('cfg-retain-mon').value +
+            '&retain_years=' + document.getElementById('cfg-retain-yr').value;
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '<%=dsp.build_url("admin/network/traffic_config_set")%>', true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.onload = function() {
+            if (xhr.status == 200) {
+                var orig = btn.textContent;
+                btn.textContent = '<%:Saved%>';
+                btn.style.background = '#5cb85c';
+                btn.style.color = '#fff';
+                setTimeout(function() {
+                    btn.textContent = orig;
+                    btn.style.background = '';
+                    btn.style.color = '';
+                }, 2000);
+            }
+        };
+        xhr.send(params);
+    }
+
     // ==== 页面初始化 ====
     window.addEventListener('load', function() {
         currentDate = getDefaultDate();
         document.getElementById('date-input').value = currentDate;
         loadTrafficData();
+        loadConfig();
 
         // 自动刷新
         pollTimer = setInterval(function() {
@@ -358,6 +408,23 @@
 //]]></script>
 
 <div id="traffic-container">
+    <fieldset id="traffic-config" style="margin-bottom:15px;padding:10px 15px;border:1px solid #ddd;border-radius:4px;background:#fafafa;">
+        <legend style="font-weight:bold;font-size:14px;"><%:Traffic Collection Settings%></legend>
+        <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+            <label style="display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;">
+                <input type="checkbox" id="cfg-enabled"> <%:Enable Collection%>
+            </label>
+            <label style="white-space:nowrap;"><%:Collect Every%> <input type="number" id="cfg-interval" min="30" max="300" style="width:60px;"> s</label>
+            <label style="white-space:nowrap;"><%:Backup Every%> <input type="number" id="cfg-persist" min="0" max="1440" style="width:60px;"> min</label>
+            <span style="color:#ccc;margin:0 4px;">|</span>
+            <label style="white-space:nowrap;"><%:Minute Data%> <input type="number" id="cfg-retain-min" min="1" max="30" style="width:50px;"> d</label>
+            <label style="white-space:nowrap;"><%:Daily Data%> <input type="number" id="cfg-retain-day" min="7" max="730" style="width:55px;"> d</label>
+            <label style="white-space:nowrap;"><%:Monthly Data%> <input type="number" id="cfg-retain-mon" min="1" max="120" style="width:55px;"> m</label>
+            <label style="white-space:nowrap;"><%:Yearly Data%> <input type="number" id="cfg-retain-yr" min="1" max="100" style="width:55px;"> y</label>
+            <button id="cfg-save-btn" onclick="saveConfig()" style="margin-left:auto;padding:5px 14px;border:1px solid #ccc;border-radius:3px;cursor:pointer;background:#fff;"><%:Save Settings%></button>
+        </div>
+    </fieldset>
+
     <div id="traffic-toolbar">
         <button id="period-day" class="active" onclick="switchPeriod('day')"><%:Day%></button>
         <button id="period-month" onclick="switchPeriod('month')"><%:Month%></button>
