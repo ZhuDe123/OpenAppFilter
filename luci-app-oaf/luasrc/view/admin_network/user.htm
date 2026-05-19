@@ -271,6 +271,7 @@
  				if (Array.isArray(data.data.list))  
                 	allUsers = data.data.list;
                 renderAutoUserData();
+                renderWhitelistData();
             }
         );
     }
@@ -392,7 +393,7 @@
                 
                 html += `<tr class="tr">
                     <td class="td">${user.mac}</td>
-                    <td class="td" style="word-break:break-all;max-width:200px;">${ipDisplay}</td>
+                    <td class="td" style="word-break:break-all;min-width:280px;">${ipDisplay}</td>
                     <td class="td">${hostname}</td>
                     <td class="td">${nickname}</td>
                     <td class="td">
@@ -554,14 +555,24 @@
         }
         tbody.innerHTML = '';
         
+        // 从 allUsers 建立 MAC→IP 查找表
+        var ipLookup = {};
+        if (allUsers) {
+            allUsers.forEach(function(u) {
+                ipLookup[u.mac] = { ip: u.ip, ipv6: u.ipv6 };
+            });
+        }
+        
         let html = '';
         whitelistData.users.forEach((user, index) => {
             const hostname = user.hostname || '--';
             const nickname = user.nickname || '--';
-            const ipDisplay = formatIPDisplay(user);
+            // 白名单数据来自 UCI，不含 IP；从 allUsers 实时查询
+            var live = ipLookup[user.mac] || {};
+            const ipDisplay = formatIPDisplay({ ip: live.ip, ipv6: live.ipv6 });
             html += `<tr class="tr">
                 <td class="td">${user.mac}</td>
-                <td class="td" style="word-break:break-all;max-width:200px;">${ipDisplay}</td>
+                <td class="td" style="word-break:break-all;min-width:280px;">${ipDisplay}</td>
                 <td class="td">${hostname}</td>
                 <td class="td">${nickname}</td>
                 <td class="td">
@@ -739,7 +750,7 @@
             <thead>
                 <tr class="tr table-titles">
                     <th class="th">MAC</th>
-                    <th class="th" style="width:160px;">IP 地址</th>
+                    <th class="th" style="width:290px;">IP 地址</th>
                     <th class="th"><%:Hostname%></th>
                     <th class="th"><%:Remark%></th>
                     <th class="th"><%:Actions%></th>
@@ -761,7 +772,7 @@
             <thead>
                 <tr class="tr table-titles">
                     <th class="th">MAC</th>
-                    <th class="th" style="width:160px;">IP 地址</th>
+                    <th class="th" style="width:290px;">IP 地址</th>
                     <th class="th"><%:Hostname%></th>
                     <th class="th"><%:Remark%></th>
                     <th class="th"><%:Actions%></th>
