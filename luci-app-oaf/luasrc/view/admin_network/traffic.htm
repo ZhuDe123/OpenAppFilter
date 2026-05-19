@@ -8,6 +8,9 @@
     #traffic-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 15px; }
     #traffic-toolbar button { padding: 6px 16px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #fff; }
     #traffic-toolbar button.active { background: #337ab7; color: #fff; border-color: #2e6da4; }
+    #time-range-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 12px; }
+    #time-range-bar button { padding: 4px 12px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; background: #fff; font-size: 12px; }
+    #time-range-bar button.active { background: #337ab7; color: #fff; border-color: #2e6da4; }
     #traffic-chart { width: 100%; height: 350px; }
     #traffic-summary { display: flex; gap: 20px; margin: 15px 0; font-size: 14px; }
     #traffic-summary .stat-item { background: #f5f5f5; padding: 10px 20px; border-radius: 4px; }
@@ -25,6 +28,7 @@
     var pollInterval = 60000;  // 60 秒刷新
     var currentPeriod = 'day';
     var currentDate = '';
+    var currentTimeRange = 'all';
     var ipAllData = [];
     var currentPage = 1;
     var pageSize = 10;
@@ -139,6 +143,17 @@
         var xData = [], upData = [], downData = [];
         if (currentPeriod == 'day') {
             var minutes = data.minute || [];
+            // 时间范围过滤——以数据最后一条记录的时间为基准，而不是浏览器时钟
+            if (currentTimeRange != 'all' && minutes.length > 0) {
+                var rangeMin = parseInt(currentTimeRange);
+                var lastTimeStr = minutes[minutes.length - 1].time;
+                var tp = lastTimeStr.split(':');
+                var base = new Date();
+                base.setHours(parseInt(tp[0]), parseInt(tp[1]), 0, 0);
+                var cutoff = new Date(base.getTime() - rangeMin * 60 * 1000);
+                var cutoffStr = String(cutoff.getHours()).padStart(2,'0') + ':' + String(cutoff.getMinutes()).padStart(2,'0');
+                minutes = minutes.filter(function(m) { return m.time >= cutoffStr; });
+            }
             minutes = aggregateMinuteData(minutes);
             for (var i = 0; i < minutes.length; i++) {
                 xData.push(minutes[i].time);
@@ -164,21 +179,41 @@
         var unit = currentPeriod == 'day' ? 'MB' : 'GB';
         var isBar = currentPeriod != 'day';
         var option = {
-            tooltip: { trigger: 'axis' },
-            legend: { data: ['上传', '下载'], top: 5 },
+            tooltip: {
+                trigger: 'axis',
+                formatter: function(params) {
+                    var html = params[0].axisValue + '<br/>';
+                    for (var i = 0; i < params.length; i++) {
+                        var v = params[i].value || 0;
+                        var vStr;
+                        if (unit == 'MB') {
+                            if (v < 1) { vStr = (v * 1024).toFixed(1) + ' KB'; }
+                            else if (v >= 1024) { vStr = (v / 1024).toFixed(2) + ' GB'; }
+                            else { vStr = v.toFixed(1) + ' MB'; }
+                        } else {
+                            if (v < 1) { vStr = (v * 1024).toFixed(1) + ' MB'; }
+                            else if (v >= 1024) { vStr = (v / 1024).toFixed(2) + ' TB'; }
+                            else { vStr = v.toFixed(1) + ' GB'; }
+                        }
+                        html += params[i].marker + ' ' + params[i].seriesName + ': ' + vStr + '<br/>';
+                    }
+                    return html;
+                }
+            },
+            legend: { data: ['下载', '上传'], top: 5 },
             grid: { left: 60, right: 20, top: 40, bottom: 30 },
             xAxis: { type: 'category', data: xData, boundaryGap: isBar },
             yAxis: { type: 'value', name: unit },
             series: [
-                { name: '上传', type: isBar ? 'bar' : 'line', data: upData, smooth: !isBar, lineStyle: { color: '#337ab7' }, itemStyle: { color: '#337ab7' } },
-                { name: '下载', type: isBar ? 'bar' : 'line', data: downData, smooth: !isBar, lineStyle: { color: '#5cb85c' }, itemStyle: { color: '#5cb85c' } }
+                { name: '下载', type: isBar ? 'bar' : 'line', data: downData, smooth: !isBar, barMaxWidth: isBar ? 40 : undefined, lineStyle: { color: '#5cb85c' }, itemStyle: { color: '#5cb85c' } },
+                { name: '上传', type: isBar ? 'bar' : 'line', data: upData, smooth: !isBar, barMaxWidth: isBar ? 40 : undefined, lineStyle: { color: '#337ab7' }, itemStyle: { color: '#337ab7' } }
             ]
         };
 
         if (!chartInstance) {
             chartInstance = echarts.init(container);
         }
-        chartInstance.setOption(option);
+        chartInstance.setOption(option, true);
     }
 
     // ==== 渲染 IP 表格 ====
@@ -199,8 +234,8 @@
                 '<td class="ip-col"><strong>' + ipsStr + '</strong></td>' +
                 '<td>' + (d.mac.startsWith('unknown_') ? '--' : d.mac) + '</td>' +
                 '<td>' + (d.hostname || '--') + '</td>' +
-                '<td style="color:#337ab7;">' + formatBytes(d.upload) + '</td>' +
                 '<td style="color:#5cb85c;">' + formatBytes(d.download) + '</td>' +
+                '<td style="color:#337ab7;">' + formatBytes(d.upload) + '</td>' +
                 '<td><strong>' + formatBytes(d.upload + d.download) + '</strong></td>' +
                 '</tr>';
         }
@@ -222,8 +257,8 @@
         }
         var el = document.getElementById('traffic-summary');
         if (el) {
-            el.innerHTML = '<div class="stat-item">上传: <strong style="color:#337ab7;">' + formatBytes(totalUp) + '</strong></div>' +
-                           '<div class="stat-item">下载: <strong style="color:#5cb85c;">' + formatBytes(totalDown) + '</strong></div>' +
+            el.innerHTML = '<div class="stat-item">下载: <strong style="color:#5cb85c;">' + formatBytes(totalDown) + '</strong></div>' +
+                           '<div class="stat-item">上传: <strong style="color:#337ab7;">' + formatBytes(totalUp) + '</strong></div>' +
                            '<div class="stat-item">总计: <strong>' + formatBytes(totalUp + totalDown) + '</strong></div>';
         }
     }
@@ -293,6 +328,7 @@
             if (xhr.status == 200) {
                 try {
                     var data = JSON.parse(xhr.responseText);
+                    window._lastTrafficData = data;
                     ipAllData = data.ip || [];
                     renderChart(data);
                     renderIPTable();
@@ -304,36 +340,65 @@
         xhr.send();
     }
 
-    // ==== 切换视图 ====
-    function switchPeriod(period) {
-        currentPeriod = period;
+    // ==== 切换视图（下拉框驱动）====
+    function onPeriodChange() {
+        currentPeriod = document.getElementById('period-select').value;
         currentDate = getDefaultDate();
         currentPage = 1;
-        document.getElementById('period-day').classList.remove('active');
-        document.getElementById('period-month').classList.remove('active');
-        document.getElementById('period-year').classList.remove('active');
-        document.getElementById('period-' + period).classList.add('active');
-        var dateInput = document.getElementById('date-input');
-        if (period == 'day') {
-            dateInput.type = 'date';
-            dateInput.value = currentDate;
-        } else if (period == 'month') {
-            dateInput.type = 'month';
-            dateInput.value = currentDate;
-        } else {
-            dateInput.type = 'number';
-            dateInput.min = '2020';
-            dateInput.max = '2099';
-            dateInput.step = '1';
-            dateInput.value = currentDate;
-            dateInput.placeholder = currentDate;
-        }
+        updateDateInput();
         loadTrafficData();
+    }
+
+    function updateDateInput() {
+        var dateInput = document.getElementById('date-input');
+        var dateSelect = document.getElementById('date-select');
+        var timeRangeBar = document.getElementById('time-range-bar');
+        timeRangeBar.style.display = (currentPeriod == 'day') ? 'flex' : 'none';
+        if (currentPeriod != 'day') currentTimeRange = 'all';
+
+        if (currentPeriod == 'year') {
+            // 年视图：用 select 下拉框
+            dateInput.style.display = 'none';
+            dateSelect.style.display = '';
+            var thisYear = parseInt(getThisYear());
+            var html = '';
+            for (var y = thisYear; y >= 2020; y--) {
+                var sel = (String(y) == currentDate) ? ' selected' : '';
+                html += '<option value="' + y + '"' + sel + '>' + y + ' 年</option>';
+            }
+            dateSelect.innerHTML = html;
+        } else {
+            // 日/月视图：用 input，只切换 date/month
+            dateSelect.style.display = 'none';
+            dateInput.style.display = '';
+            var saved = dateInput.onchange;
+            dateInput.onchange = null;
+            dateInput.type = (currentPeriod == 'day') ? 'date' : 'month';
+            dateInput.max = (currentPeriod == 'day') ? getToday() : getThisMonth();
+            dateInput.value = currentDate;
+            setTimeout(function() { dateInput.onchange = saved; }, 100);
+        }
+    }
+
+    function switchTimeRange(range) {
+        currentTimeRange = range;
+        var btns = document.querySelectorAll('#time-range-bar button');
+        for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+        var targetBtn = document.getElementById('tr-' + range);
+        if (targetBtn) targetBtn.classList.add('active');
+        if (window._lastTrafficData && window._lastTrafficData.minute) {
+            renderChart(window._lastTrafficData);
+        } else {
+            loadTrafficData();
+        }
     }
 
     // ==== 日期变更 ====
     function onDateChange() {
-        currentDate = document.getElementById('date-input').value;
+        var dateInput = document.getElementById('date-input');
+        var dateSelect = document.getElementById('date-select');
+        // 日/月视图从 input 取值，年视图从 select 取值
+        currentDate = (dateSelect.style.display == 'none') ? dateInput.value : dateSelect.value;
         currentPage = 1;
         loadTrafficData();
     }
@@ -402,7 +467,8 @@
     // ==== 页面初始化 ====
     window.addEventListener('load', function() {
         currentDate = getDefaultDate();
-        document.getElementById('date-input').value = currentDate;
+        document.getElementById('date-input').max = getToday();
+        updateDateInput();
         loadTrafficData();
         loadConfig();
 
@@ -435,23 +501,36 @@
             <label style="display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;">
                 <input type="checkbox" id="cfg-enabled"> 启用采集
             </label>
-            <label style="white-space:nowrap;">采集间隔 <input type="number" id="cfg-interval" min="30" max="300" style="width:60px;"> s</label>
-            <label style="white-space:nowrap;">备份间隔 <input type="number" id="cfg-persist" min="0" max="1440" style="width:60px;"> min</label>
+            <label style="white-space:nowrap;">采集间隔 <input type="number" id="cfg-interval" min="30" max="300" style="width:70px;"> 秒</label>
+            <label style="white-space:nowrap;">备份间隔 <input type="number" id="cfg-persist" min="0" max="1440" style="width:70px;"> 分钟</label>
             <span style="color:#ccc;margin:0 4px;">|</span>
-            <label style="white-space:nowrap;">分钟数据 <input type="number" id="cfg-retain-min" min="1" max="30" style="width:50px;"> d</label>
-            <label style="white-space:nowrap;">日数据 <input type="number" id="cfg-retain-day" min="7" max="730" style="width:55px;"> d</label>
-            <label style="white-space:nowrap;">月数据 <input type="number" id="cfg-retain-mon" min="1" max="120" style="width:55px;"> m</label>
-            <label style="white-space:nowrap;">年数据 <input type="number" id="cfg-retain-yr" min="1" max="100" style="width:55px;"> y</label>
-            <button id="cfg-save-btn" onclick="saveConfig()" style="margin-left:auto;padding:5px 14px;border:1px solid #ccc;border-radius:3px;cursor:pointer;background:#fff;">保存设置</button>
+            <label style="white-space:nowrap;">分钟数据保留 <input type="number" id="cfg-retain-min" min="1" max="30" style="width:60px;"> 天</label>
+            <label style="white-space:nowrap;">日数据保留 <input type="number" id="cfg-retain-day" min="7" max="730" style="width:60px;"> 天</label>
+            <label style="white-space:nowrap;">月数据保留 <input type="number" id="cfg-retain-mon" min="1" max="120" style="width:60px;"> 月</label>
+            <label style="white-space:nowrap;">年数据保留 <input type="number" id="cfg-retain-yr" min="1" max="100" style="width:60px;"> 年</label>
+            <button type="button" id="cfg-save-btn" onclick="saveConfig()" style="margin-left:auto;padding:5px 14px;border:1px solid #ccc;border-radius:3px;cursor:pointer;background:#fff;">保存设置</button>
         </div>
     </fieldset>
 
     <div id="traffic-toolbar">
-        <button id="period-day" class="active" onclick="switchPeriod('day')">日</button>
-        <button id="period-month" onclick="switchPeriod('month')">月</button>
-        <button id="period-year" onclick="switchPeriod('year')">年</button>
-        <input type="date" id="date-input" style="padding:6px 10px;border:1px solid #ccc;border-radius:4px;" onchange="onDateChange()">
+        <select id="period-select" onchange="onPeriodChange()" style="padding:6px 10px;border:1px solid #ccc;border-radius:4px;font-size:13px;">
+            <option value="day">日视图</option>
+            <option value="month">月视图</option>
+            <option value="year">年视图</option>
+        </select>
+        <input type="date" id="date-input" style="padding:6px 10px;border:1px solid #ccc;border-radius:4px;cursor:pointer;" onchange="onDateChange()" onclick="if(this.showPicker)this.showPicker()">
+        <select id="date-select" style="display:none;padding:6px 10px;border:1px solid #ccc;border-radius:4px;font-size:13px;" onchange="onDateChange()"></select>
         <span style="margin-left:auto;font-size:12px;color:#888;">自动刷新: 60s</span>
+    </div>
+
+    <div id="time-range-bar" style="display:flex;">
+        <span style="font-size:12px;color:#888;margin-right:4px;">时间范围:</span>
+        <button type="button" id="tr-30" onclick="switchTimeRange('30')">30分钟</button>
+        <button type="button" id="tr-60" onclick="switchTimeRange('60')">1小时</button>
+        <button type="button" id="tr-180" onclick="switchTimeRange('180')">3小时</button>
+        <button type="button" id="tr-360" onclick="switchTimeRange('360')">6小时</button>
+        <button type="button" id="tr-720" onclick="switchTimeRange('720')">12小时</button>
+        <button type="button" id="tr-all" class="active" onclick="switchTimeRange('all')">全天</button>
     </div>
 
     <div id="traffic-chart"></div>
@@ -472,8 +551,8 @@
             <th class="th">IP 地址</th>
             <th class="th">MAC</th>
             <th class="th">主机名</th>
-            <th class="th sort-arrow" data-field="upload" onclick="setSort('upload')">上传 <span class="arrow">↕</span></th>
             <th class="th sort-arrow" data-field="download" onclick="setSort('download')">下载 <span class="arrow">↕</span></th>
+            <th class="th sort-arrow" data-field="upload" onclick="setSort('upload')">上传 <span class="arrow">↕</span></th>
             <th class="th sort-arrow active" data-field="total" onclick="setSort('total')">总计 <span class="arrow">↓</span></th>
         </tr>
         <tbody id="ip-table-body">
