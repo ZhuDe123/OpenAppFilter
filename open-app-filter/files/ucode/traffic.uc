@@ -160,7 +160,7 @@ function collect_traffic() {
             if (!length(ips)) continue;
 
             let mac = d.mac || ('unknown_' + ips[0]);
-            let hostname = d.hostname || '';
+            let hostname = d.nickname || d.hostname || '';
 
             // today_up_flow / today_down_flow 现在是字节（已改为 int64）
             let up = int(d.today_up_flow || 0);

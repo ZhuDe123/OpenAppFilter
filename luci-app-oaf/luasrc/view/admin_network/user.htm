@@ -350,6 +350,15 @@
     }
 
 
+    function formatIPDisplay(user) {
+        var ipv4 = user.ip || '';
+        var ipv6 = user.ipv6 || '';
+        var ips = [];
+        if (ipv4 && ipv4 !== '0.0.0.0' && ipv4 !== 'unknown') ips.push(ipv4);
+        if (ipv6 && ipv6 !== '::' && ipv6 !== 'unknown') ips.push(ipv6);
+        return ips.length > 0 ? ips.join('<br>') : '--';
+    }
+
     function renderAutoUserData() {
         const table = document.getElementById('auto_user_table');
         let tbody = table.querySelector('tbody');
@@ -379,14 +388,17 @@
             displayList.forEach((user, index) => {
                 const hostname = user.hostname || '--';
                 const nickname = user.nickname || '--';
+                const ipDisplay = formatIPDisplay(user);
                 
                 html += `<tr class="tr">
                     <td class="td">${user.mac}</td>
+                    <td class="td" style="word-break:break-all;max-width:200px;">${ipDisplay}</td>
                     <td class="td">${hostname}</td>
                     <td class="td">${nickname}</td>
                     <td class="td">
-                        <div style="display: flex; white-space: nowrap;">
-                        <button type="button" class="cbi-button cbi-button-add" onclick="addUserToWhitelist('${user.mac}')"><%:Add to Whitelist%></button>
+                        <div style="display: flex; gap: 6px; white-space: nowrap;">
+                        <button type="button" class="cbi-button cbi-button-add" onclick="showEditNicknameModal('${user.mac}', '${nickname.replace(/'/g, "\\'")}', '${hostname.replace(/'/g, "\\'")}')">编辑</button>
+                        <button type="button" class="cbi-button cbi-button-add" onclick="addUserToWhitelist('${user.mac}')">加入白名单</button>
                         </div>
                     </td>
                 </tr>`;
@@ -546,12 +558,15 @@
         whitelistData.users.forEach((user, index) => {
             const hostname = user.hostname || '--';
             const nickname = user.nickname || '--';
+            const ipDisplay = formatIPDisplay(user);
             html += `<tr class="tr">
                 <td class="td">${user.mac}</td>
+                <td class="td" style="word-break:break-all;max-width:200px;">${ipDisplay}</td>
                 <td class="td">${hostname}</td>
                 <td class="td">${nickname}</td>
                 <td class="td">
-                    <div style="display: flex; white-space: nowrap;">
+                    <div style="display: flex; gap: 6px; white-space: nowrap;">
+                    <button type="button" class="cbi-button cbi-button-add" onclick="showEditNicknameModal('${user.mac}', '${nickname.replace(/'/g, "\\'")}', '${hostname.replace(/'/g, "\\'")}')">编辑</button>
                     <button type="button" class="delete-button" onclick="removeWhitelistUser(${index})"><%:Delete%></button>
                     </div>
                 </td>
@@ -662,6 +677,35 @@
         );
     }
 
+    function showEditNicknameModal(mac, nickname, hostname) {
+        document.getElementById('editNicknameModal').style.display = 'flex';
+        document.getElementById('edit_mac').value = mac;
+        document.getElementById('edit_mac_display').textContent = mac;
+        document.getElementById('edit_hostname_display').textContent = hostname || '--';
+        document.getElementById('edit_nickname').value = nickname === '--' ? '' : nickname;
+    }
+
+    function closeEditNicknameModal() {
+        document.getElementById('editNicknameModal').style.display = 'none';
+    }
+
+    function saveNickname() {
+        var mac = document.getElementById('edit_mac').value;
+        var nickname = document.getElementById('edit_nickname').value;
+        new XHR().post('<%=url('admin/network/set_nickname')%>',
+            { mac: mac, nickname: nickname },
+            function(x, data) {
+                closeEditNicknameModal();
+                setTimeout(function() {
+                    getAllUsersData();
+                    getAppFilterUserData();
+                    getWhitelistData();
+                }, 300);
+                showSuccessMessage('保存成功');
+            }
+        );
+    }
+
     window.onload = initData;
 //]]></script>
 
@@ -694,7 +738,8 @@
         <table class="cbi-section-table" id="auto_user_table">
             <thead>
                 <tr class="tr table-titles">
-                    <th class="th"><%:MAC%></th>
+                    <th class="th">MAC</th>
+                    <th class="th" style="width:160px;">IP 地址</th>
                     <th class="th"><%:Hostname%></th>
                     <th class="th"><%:Remark%></th>
                     <th class="th"><%:Actions%></th>
@@ -715,7 +760,8 @@
         <table class="cbi-section-table" id="whitelist_table">
             <thead>
                 <tr class="tr table-titles">
-                    <th class="th"><%:MAC%></th>
+                    <th class="th">MAC</th>
+                    <th class="th" style="width:160px;">IP 地址</th>
                     <th class="th"><%:Hostname%></th>
                     <th class="th"><%:Remark%></th>
                     <th class="th"><%:Actions%></th>
@@ -757,6 +803,29 @@
             <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
                 <button type="button" onclick="closeWhitelistModal()" style="padding: 7px 16px; border: 1px solid var(--border-color-medium, #d1d5db); border-radius: 4px; cursor: pointer; font-size: 13px; background: transparent;"><%:Cancel%></button>
                 <button type="button" onclick="addSelectedWhitelistUsers()" style="padding: 7px 16px; background-color: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;"><%:OK%></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editNicknameModal" class="oaf-modal-overlay" style="display:none;">
+        <div class="oaf-modal-box" style="width:420px;">
+            <h3>编辑备注</h3>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:13px;color:#666;">MAC</label>
+                <div id="edit_mac_display" style="font-family:monospace;font-size:13px;padding:4px 0;"></div>
+                <input type="hidden" id="edit_mac">
+            </div>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:13px;color:#666;">主机名</label>
+                <div id="edit_hostname_display" style="font-size:13px;padding:4px 0;"></div>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="font-size:13px;color:#666;" for="edit_nickname">备注</label>
+                <input type="text" id="edit_nickname" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:4px;font-size:13px;margin-top:4px;box-sizing:border-box;" placeholder="输入备注名称">
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;">
+                <button type="button" onclick="closeEditNicknameModal()" style="padding:7px 16px;border:1px solid var(--border-color-medium,#d1d5db);border-radius:4px;cursor:pointer;font-size:13px;background:transparent;">取消</button>
+                <button type="button" onclick="saveNickname()" style="padding:7px 16px;background-color:#1a73e8;color:white;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:500;">保存</button>
             </div>
         </div>
     </div>
