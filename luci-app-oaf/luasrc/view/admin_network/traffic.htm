@@ -16,6 +16,7 @@
     .sort-arrow { cursor: pointer; user-select: none; }
     .sort-arrow.active { color: #337ab7; font-weight: bold; }
     .traffic-table td, .traffic-table th { padding: 8px 12px; text-align: left; white-space: nowrap; }
+    .traffic-table td.ip-col { white-space: normal; word-break: break-all; max-width: 260px; }
 </style>
 
 <script type="text/javascript">//<![CDATA[
@@ -194,7 +195,7 @@
             var d = pageData[i];
             var ipsStr = d.ips.join('<br>');
             html += '<tr>' +
-                '<td><strong>' + ipsStr + '</strong></td>' +
+                '<td class="ip-col"><strong>' + ipsStr + '</strong></td>' +
                 '<td style="font-family:monospace;font-size:12px;">' + (d.mac.startsWith('unknown_') ? '--' : d.mac) + '</td>' +
                 '<td>' + (d.hostname || '--') + '</td>' +
                 '<td style="color:#337ab7;">' + formatBytes(d.upload) + '</td>' +

@@ -334,7 +334,14 @@
 							</div>
 						</div>
 					`;
-					tr.insertCell(-1).innerHTML = user_list[i].ip;
+					var ip_display = user_list[i].ip;
+					var ipv6_display = user_list[i].ipv6 || '';
+					if ((!ip_display || ip_display === '0.0.0.0') && ipv6_display && ipv6_display !== '::') {
+						ip_display = ipv6_display;
+					} else if (ip_display && ip_display !== '0.0.0.0' && ipv6_display && ipv6_display !== '::') {
+						ip_display = ip_display + '<br>' + ipv6_display;
+					}
+					tr.insertCell(-1).innerHTML = ip_display;
 					tr.insertCell(-1).innerHTML = formatRate(user_list[i].up_rate, user_list[i].online);
 					tr.insertCell(-1).innerHTML = formatRate(user_list[i].down_rate, user_list[i].online);
 					

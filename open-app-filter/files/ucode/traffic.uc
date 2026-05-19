@@ -150,13 +150,16 @@ function collect_traffic() {
 
         for (let i = 0; i < length(dev_list); i++) {
             let d = dev_list[i];
-            let ip = d.ip || '';
+            let ipv4 = d.ip || '';
             let ipv6 = d.ipv6 || '';
-            // 跳过无效 IP（IPv4 为空/无效时回退到 IPv6）
-            if ((!ip || ip == '0.0.0.0' || ip == 'unknown') && (!ipv6 || ipv6 == '::' || ipv6 == 'unknown')) continue;
-            if (!ip || ip == '0.0.0.0' || ip == 'unknown') ip = ipv6;
 
-            let mac = d.mac || ('unknown_' + ip);
+            // 收集该设备的所有有效 IP（IPv4 + IPv6）
+            let ips = [];
+            if (ipv4 && ipv4 != '0.0.0.0' && ipv4 != 'unknown') push(ips, ipv4);
+            if (ipv6 && ipv6 != '::' && ipv6 != 'unknown') push(ips, ipv6);
+            if (!length(ips)) continue;
+
+            let mac = d.mac || ('unknown_' + ips[0]);
             let hostname = d.hostname || '';
 
             // today_up_flow / today_down_flow 现在是字节（已改为 int64）
@@ -168,7 +171,7 @@ function collect_traffic() {
 
             global_up += up;
             global_down += down;
-            push(devices, { ip: ip, mac: mac, hostname: hostname, up: up, down: down });
+            push(devices, { ips: ips, mac: mac, hostname: hostname, up: up, down: down });
         }
 
         // ===== Step 3: 读取上次快照 =====
@@ -195,9 +198,10 @@ function collect_traffic() {
         let ip_deltas = {};
         for (let i = 0; i < length(devices); i++) {
             let d = devices[i];
-            let key = 'ip:' + d.ip;
+            let primary_ip = d.ips[0];
+            let key = 'ip:' + primary_ip;
             let old_ip = old[key];
-            ip_deltas[d.ip] = {
+            ip_deltas[primary_ip] = {
                 up: compute_delta(d.up, old_ip?.up || 0),
                 down: compute_delta(d.down, old_ip?.down || 0)
             };
@@ -223,25 +227,32 @@ function collect_traffic() {
         sql += sprintf("INSERT INTO traffic_minute (date, time, upload, download) VALUES ('%s', '%s', %d, %d) ON CONFLICT(date, time) DO UPDATE SET upload=upload+%d, download=download+%d;\n",
             today, time_str, up_delta, down_delta, up_delta, down_delta);
 
-        // 每 IP 每日表
+        // 每 IP 每日表 — 所有 IP 各一行，流量只计在主 IP（ips[0]）上
         for (let i = 0; i < length(devices); i++) {
             let d = devices[i];
-            let delta = ip_deltas[d.ip];
-            let safe_ip = sq(d.ip);
+            let primary_ip = d.ips[0];
+            let delta = ip_deltas[primary_ip];
             let safe_mac = sq(d.mac);
             let safe_host = sq(d.hostname);
-            sql += sprintf("INSERT INTO traffic_ip_daily (date, ip, mac, hostname, upload, download) VALUES ('%s', %s, %s, %s, %d, %d) ON CONFLICT(date, ip) DO UPDATE SET upload=upload+%d, download=download+%d, mac=%s, hostname=%s;\n",
-                today, safe_ip, safe_mac, safe_host,
-                delta.up, delta.down, delta.up, delta.down,
-                safe_mac, safe_host);
+            for (let j = 0; j < length(d.ips); j++) {
+                let sip = d.ips[j];
+                let safe_ip = sq(sip);
+                let d_up = (j == 0) ? delta.up : 0;
+                let d_down = (j == 0) ? delta.down : 0;
+                sql += sprintf("INSERT INTO traffic_ip_daily (date, ip, mac, hostname, upload, download) VALUES ('%s', %s, %s, %s, %d, %d) ON CONFLICT(date, ip) DO UPDATE SET upload=upload+%d, download=download+%d, mac=%s, hostname=%s;\n",
+                    today, safe_ip, safe_mac, safe_host,
+                    d_up, d_down, d_up, d_down,
+                    safe_mac, safe_host);
+            }
         }
 
-        // 更新快照
+        // 更新快照 — 只用主 IP
         sql += sprintf("INSERT OR REPLACE INTO traffic_last_capture (key, upload, download, last_seen) VALUES ('global', %d, %d, %d);\n",
             global_up, global_down, now);
         for (let i = 0; i < length(devices); i++) {
             let d = devices[i];
-            let safe_key = sq('ip:' + d.ip);
+            let primary_ip = d.ips[0];
+            let safe_key = sq('ip:' + primary_ip);
             sql += sprintf("INSERT OR REPLACE INTO traffic_last_capture (key, upload, download, last_seen) VALUES (%s, %d, %d, %d);\n",
                 safe_key, d.up, d.down, now);
         }
