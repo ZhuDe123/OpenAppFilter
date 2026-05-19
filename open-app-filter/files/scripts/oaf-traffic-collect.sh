@@ -14,7 +14,7 @@ while true; do
     # 定期备份
     PERSIST_COUNT=$((PERSIST_COUNT + 1))
     # 从 UCI 读取备份间隔
-    local persist_min=$(uci get appfilter.traffic.persist_interval 2>/dev/null || echo "30")
+    persist_min=$(uci get appfilter.traffic.persist_interval 2>/dev/null || echo "30")
     if [ "$persist_min" != "0" ] && [ $((PERSIST_COUNT * COLLECT_INTERVAL)) -ge $((persist_min * 60)) ]; then
         /usr/bin/ucode /etc/oaf/ucode/traffic.uc persist
         PERSIST_COUNT=0

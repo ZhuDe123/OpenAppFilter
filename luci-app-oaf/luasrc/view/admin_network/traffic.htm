@@ -163,13 +163,13 @@
         var unit = currentPeriod == 'day' ? 'MB' : 'GB';
         var option = {
             tooltip: { trigger: 'axis' },
-            legend: { data: ['<%:Upload%>', '<%:Download%>'], top: 5 },
+            legend: { data: ['上传', '下载'], top: 5 },
             grid: { left: 60, right: 20, top: 40, bottom: 30 },
             xAxis: { type: 'category', data: xData, boundaryGap: false },
             yAxis: { type: 'value', name: unit },
             series: [
-                { name: '<%:Upload%>', type: 'line', data: upData, smooth: true, lineStyle: { color: '#337ab7' }, itemStyle: { color: '#337ab7' } },
-                { name: '<%:Download%>', type: 'line', data: downData, smooth: true, lineStyle: { color: '#5cb85c' }, itemStyle: { color: '#5cb85c' } }
+                { name: '上传', type: 'line', data: upData, smooth: true, lineStyle: { color: '#337ab7' }, itemStyle: { color: '#337ab7' } },
+                { name: '下载', type: 'line', data: downData, smooth: true, lineStyle: { color: '#5cb85c' }, itemStyle: { color: '#5cb85c' } }
             ]
         };
 
@@ -220,9 +220,9 @@
         }
         var el = document.getElementById('traffic-summary');
         if (el) {
-            el.innerHTML = '<div class="stat-item"><%:Upload%>: <strong style="color:#337ab7;">' + formatBytes(totalUp) + '</strong></div>' +
-                           '<div class="stat-item"><%:Download%>: <strong style="color:#5cb85c;">' + formatBytes(totalDown) + '</strong></div>' +
-                           '<div class="stat-item"><%:Total%>: <strong>' + formatBytes(totalUp + totalDown) + '</strong></div>';
+            el.innerHTML = '<div class="stat-item">上传: <strong style="color:#337ab7;">' + formatBytes(totalUp) + '</strong></div>' +
+                           '<div class="stat-item">下载: <strong style="color:#5cb85c;">' + formatBytes(totalDown) + '</strong></div>' +
+                           '<div class="stat-item">总计: <strong>' + formatBytes(totalUp + totalDown) + '</strong></div>';
         }
     }
 
@@ -230,7 +230,7 @@
     function renderPagination(totalPages) {
         var el = document.getElementById('ip-pagination');
         if (!el || totalPages <= 1) { if (el) el.innerHTML = ''; return; }
-        var html = '<span style="margin-right:8px;"><%:Page%>: ' + currentPage + '/' + totalPages + '</span>';
+        var html = '<span style="margin-right:8px;">页: ' + currentPage + '/' + totalPages + '</span>';
         html += '<button onclick="goToPage(1)" ' + (currentPage <= 1 ? 'disabled' : '') + '>«</button>';
         html += '<button onclick="goToPage(' + (currentPage - 1) + ')" ' + (currentPage <= 1 ? 'disabled' : '') + '>‹</button>';
         var maxShow = 5;
@@ -365,7 +365,7 @@
         xhr.onload = function() {
             if (xhr.status == 200) {
                 var orig = btn.textContent;
-                btn.textContent = '<%:Saved%>';
+                btn.textContent = '已保存';
                 btn.style.background = '#5cb85c';
                 btn.style.color = '#fff';
                 setTimeout(function() {
@@ -409,28 +409,28 @@
 
 <div id="traffic-container">
     <fieldset id="traffic-config" style="margin-bottom:15px;padding:10px 15px;border:1px solid #ddd;border-radius:4px;background:#fafafa;">
-        <legend style="font-weight:bold;font-size:14px;"><%:Traffic Collection Settings%></legend>
+        <legend style="font-weight:bold;font-size:14px;">流量采集设置</legend>
         <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
             <label style="display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;">
-                <input type="checkbox" id="cfg-enabled"> <%:Enable Collection%>
+                <input type="checkbox" id="cfg-enabled"> 启用采集
             </label>
-            <label style="white-space:nowrap;"><%:Collect Every%> <input type="number" id="cfg-interval" min="30" max="300" style="width:60px;"> s</label>
-            <label style="white-space:nowrap;"><%:Backup Every%> <input type="number" id="cfg-persist" min="0" max="1440" style="width:60px;"> min</label>
+            <label style="white-space:nowrap;">采集间隔 <input type="number" id="cfg-interval" min="30" max="300" style="width:60px;"> s</label>
+            <label style="white-space:nowrap;">备份间隔 <input type="number" id="cfg-persist" min="0" max="1440" style="width:60px;"> min</label>
             <span style="color:#ccc;margin:0 4px;">|</span>
-            <label style="white-space:nowrap;"><%:Minute Data%> <input type="number" id="cfg-retain-min" min="1" max="30" style="width:50px;"> d</label>
-            <label style="white-space:nowrap;"><%:Daily Data%> <input type="number" id="cfg-retain-day" min="7" max="730" style="width:55px;"> d</label>
-            <label style="white-space:nowrap;"><%:Monthly Data%> <input type="number" id="cfg-retain-mon" min="1" max="120" style="width:55px;"> m</label>
-            <label style="white-space:nowrap;"><%:Yearly Data%> <input type="number" id="cfg-retain-yr" min="1" max="100" style="width:55px;"> y</label>
-            <button id="cfg-save-btn" onclick="saveConfig()" style="margin-left:auto;padding:5px 14px;border:1px solid #ccc;border-radius:3px;cursor:pointer;background:#fff;"><%:Save Settings%></button>
+            <label style="white-space:nowrap;">分钟数据 <input type="number" id="cfg-retain-min" min="1" max="30" style="width:50px;"> d</label>
+            <label style="white-space:nowrap;">日数据 <input type="number" id="cfg-retain-day" min="7" max="730" style="width:55px;"> d</label>
+            <label style="white-space:nowrap;">月数据 <input type="number" id="cfg-retain-mon" min="1" max="120" style="width:55px;"> m</label>
+            <label style="white-space:nowrap;">年数据 <input type="number" id="cfg-retain-yr" min="1" max="100" style="width:55px;"> y</label>
+            <button id="cfg-save-btn" onclick="saveConfig()" style="margin-left:auto;padding:5px 14px;border:1px solid #ccc;border-radius:3px;cursor:pointer;background:#fff;">保存设置</button>
         </div>
     </fieldset>
 
     <div id="traffic-toolbar">
-        <button id="period-day" class="active" onclick="switchPeriod('day')"><%:Day%></button>
-        <button id="period-month" onclick="switchPeriod('month')"><%:Month%></button>
-        <button id="period-year" onclick="switchPeriod('year')"><%:Year%></button>
+        <button id="period-day" class="active" onclick="switchPeriod('day')">日</button>
+        <button id="period-month" onclick="switchPeriod('month')">月</button>
+        <button id="period-year" onclick="switchPeriod('year')">年</button>
         <input type="date" id="date-input" style="padding:6px 10px;border:1px solid #ccc;border-radius:4px;" onchange="onDateChange()">
-        <span style="margin-left:auto;font-size:12px;color:#888;"><%:Auto refresh%>: 60s</span>
+        <span style="margin-left:auto;font-size:12px;color:#888;">自动刷新: 60s</span>
     </div>
 
     <div id="traffic-chart"></div>
@@ -438,9 +438,9 @@
     <div id="traffic-summary"></div>
 
     <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">
-        <input type="text" id="traffic-search" placeholder="<%:Search IP/MAC/Hostname%>" oninput="onSearchChange()">
+        <input type="text" id="traffic-search" placeholder="搜索 IP/MAC/主机名" oninput="onSearchChange()">
         <select id="traffic-filter" onchange="onFilterChange()">
-            <option value="all"><%:All%></option>
+            <option value="all">全部</option>
             <option value="ipv4">IPv4</option>
             <option value="ipv6">IPv6</option>
         </select>
@@ -448,15 +448,15 @@
 
     <table class="table cbi-section-table traffic-table">
         <tr class="tr table-titles">
-            <th class="th"><%:IP Address%></th>
-            <th class="th"><%:MAC%></th>
-            <th class="th"><%:Hostname%></th>
-            <th class="th sort-arrow" data-field="upload" onclick="setSort('upload')"><%:Upload%> ↕</th>
-            <th class="th sort-arrow" data-field="download" onclick="setSort('download')"><%:Download%> ↕</th>
-            <th class="th sort-arrow active" data-field="total" onclick="setSort('total')"><%:Total%> ↓</th>
+            <th class="th">IP 地址</th>
+            <th class="th">MAC</th>
+            <th class="th">主机名</th>
+            <th class="th sort-arrow" data-field="upload" onclick="setSort('upload')">上传 ↕</th>
+            <th class="th sort-arrow" data-field="download" onclick="setSort('download')">下载 ↕</th>
+            <th class="th sort-arrow active" data-field="total" onclick="setSort('total')">总计 ↓</th>
         </tr>
         <tbody id="ip-table-body">
-            <tr><td colspan="6" style="text-align:center;"><em><%:Loading...%></em></td></tr>
+            <tr><td colspan="6" style="text-align:center;"><em>加载中...</em></td></tr>
         </tbody>
     </table>
 

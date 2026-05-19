@@ -246,7 +246,7 @@ else
     fail "appfilter.traffic 配置段不存在 — 请运行 uci-defaults 或手动创建"
     if [ "$AUTO_FIX" = "1" ]; then
         fix "创建默认配置..."
-        if [ -f /usr/share/uci-defaults/99_oaf_traffic ]; then
+        if [ -f /etc/uci-defaults/99_oaf_traffic ]; then
             sh /etc/uci-defaults/99_oaf_traffic
             fix "已执行 uci-defaults 脚本"
         fi
@@ -422,7 +422,8 @@ echo "── 10. 手动采集测试 ──"
 
 if [ -f /etc/oaf/ucode/traffic.uc ]; then
     info "手动运行一次采集（命令: ucode /etc/oaf/ucode/traffic.uc collect）..."
-    RESULT=$(ucode /etc/oaf/ucode/traffic.uc collect 2>&1; EXIT_CODE=$?)
+    RESULT=$(ucode /etc/oaf/ucode/traffic.uc collect 2>&1)
+    EXIT_CODE=$?
     if [ "$EXIT_CODE" -eq 0 ] && echo "$RESULT" | grep -q "Collect OK"; then
         pass "手动采集成功: $RESULT"
     elif echo "$RESULT" | grep -q "skipping"; then
