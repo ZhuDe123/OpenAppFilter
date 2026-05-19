@@ -21,7 +21,7 @@ function index()
 
 	entry({"admin", "services", "appfilter", "user"}, cbi("appfilter/user", {hideapplybtn=true, hidesavebtn=true, hideresetbtn=true}), _("User Configuration"), 24).leaf=true
 	entry({"admin", "services", "appfilter", "advance"}, cbi("appfilter/advance", {hideapplybtn=true, hidesavebtn=true, hideresetbtn=true}), _("Advanced Settings"), 27).leaf=true
-	entry({"admin", "services", "appfilter", "traffic"}, template("admin_network/traffic"), _("Traffic Statistics"), 30).leaf=true
+	entry({"admin", "services", "appfilter", "traffic"}, cbi("appfilter/traffic", {hideapplybtn=true, hidesavebtn=true, hideresetbtn=true}), _("Traffic Statistics"), 30).leaf=true
 	entry({"admin", "network", "traffic_stats"}, call("traffic_stats"), nil).leaf = true
 	entry({"admin", "network", "traffic_config_get"}, call("traffic_config_get"), nil).leaf = true
 	entry({"admin", "network", "traffic_config_set"}, call("traffic_config_set"), nil).leaf = true

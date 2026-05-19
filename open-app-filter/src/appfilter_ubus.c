@@ -1484,7 +1484,7 @@ void all_users_callback(void *arg, dev_node_t *dev)
 
     if (flag > 0) {
         json_object_object_add(user_obj, "ip", json_object_new_string(dev->ip));
-      
+        json_object_object_add(user_obj, "ipv6", json_object_new_string(dev->ipv6));
     }
 
     if (flag > 1){

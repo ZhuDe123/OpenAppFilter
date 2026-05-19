@@ -151,8 +151,10 @@ function collect_traffic() {
         for (let i = 0; i < length(dev_list); i++) {
             let d = dev_list[i];
             let ip = d.ip || '';
-            // 跳过无效 IP
-            if (!ip || ip == '0.0.0.0' || ip == 'unknown') continue;
+            let ipv6 = d.ipv6 || '';
+            // 跳过无效 IP（IPv4 为空/无效时回退到 IPv6）
+            if ((!ip || ip == '0.0.0.0' || ip == 'unknown') && (!ipv6 || ipv6 == '::' || ipv6 == 'unknown')) continue;
+            if (!ip || ip == '0.0.0.0' || ip == 'unknown') ip = ipv6;
 
             let mac = d.mac || ('unknown_' + ip);
             let hostname = d.hostname || '';

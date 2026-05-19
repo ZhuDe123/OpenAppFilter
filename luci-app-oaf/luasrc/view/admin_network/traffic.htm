@@ -263,16 +263,21 @@
     }
 
     function updateSortArrows() {
-        var arrows = document.querySelectorAll('.sort-arrow');
-        for (var i = 0; i < arrows.length; i++) {
-            var f = arrows[i].getAttribute('data-field');
-            arrows[i].classList.remove('active');
-            arrows[i].innerHTML = ' ↕';
+        var allArrows = document.querySelectorAll('.sort-arrow');
+        for (var i = 0; i < allArrows.length; i++) {
+            allArrows[i].classList.remove('active');
+        }
+        var arrows = document.querySelectorAll('.sort-arrow .arrow');
+        for (var j = 0; j < arrows.length; j++) {
+            arrows[j].innerHTML = '↕';
         }
         var active = document.querySelector('.sort-arrow[data-field="' + sortField + '"]');
         if (active) {
             active.classList.add('active');
-            active.innerHTML = sortOrder == 'asc' ? ' ↑' : ' ↓';
+            var activeArrow = active.querySelector('.arrow');
+            if (activeArrow) {
+                activeArrow.innerHTML = sortOrder == 'asc' ? '↑' : '↓';
+            }
         }
     }
 
@@ -451,9 +456,9 @@
             <th class="th">IP 地址</th>
             <th class="th">MAC</th>
             <th class="th">主机名</th>
-            <th class="th sort-arrow" data-field="upload" onclick="setSort('upload')">上传 ↕</th>
-            <th class="th sort-arrow" data-field="download" onclick="setSort('download')">下载 ↕</th>
-            <th class="th sort-arrow active" data-field="total" onclick="setSort('total')">总计 ↓</th>
+            <th class="th sort-arrow" data-field="upload" onclick="setSort('upload')">上传 <span class="arrow">↕</span></th>
+            <th class="th sort-arrow" data-field="download" onclick="setSort('download')">下载 <span class="arrow">↕</span></th>
+            <th class="th sort-arrow active" data-field="total" onclick="setSort('total')">总计 <span class="arrow">↓</span></th>
         </tr>
         <tbody id="ip-table-body">
             <tr><td colspan="6" style="text-align:center;"><em>加载中...</em></td></tr>
