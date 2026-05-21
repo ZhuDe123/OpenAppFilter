@@ -20,6 +20,34 @@
     .sort-arrow.active { color: #337ab7; font-weight: bold; }
     .traffic-table td, .traffic-table th { padding: 8px 12px; text-align: left; white-space: nowrap; }
     .traffic-table td.ip-col { white-space: normal; word-break: break-all; max-width: 260px; }
+    /* 隐藏原生细节标记，改用更现代的手型 */
+    .traffic-table details summary {
+        cursor: pointer;
+        outline: none;
+        list-style: none; /* Chrome/Firefox */
+    }
+    .traffic-table details summary::-webkit-details-marker {
+        display: none; /* Safari */
+    }
+    /* 展开/收起的小提示后缀 */
+    .ip-count-badge {
+        font-size: 11px;
+        color: #337ab7;
+        margin-left: 5px;
+        font-weight: normal;
+    }
+    /* 展开后的附加 IP 盒子 */
+    .ip-list-box {
+        margin-top: 4px;
+        padding: 4px 8px;
+        background: #f9f9f9;
+        border-left: 2px solid #337ab7;
+        border-radius: 0 4px 4px 0;
+        font-size: 12px;
+        color: #666;
+        font-weight: normal;
+        line-height: 1.5;
+    }
 </style>
 
 <script type="text/javascript">//<![CDATA[
@@ -227,11 +255,81 @@
         var tbody = document.getElementById('ip-table-body');
         if (!tbody) return;
         var html = '';
+
+        // 提取当前的搜索词，转为小写便于匹配
+        var term = searchTerm ? searchTerm.toLowerCase() : '';
+
         for (var i = 0; i < pageData.length; i++) {
             var d = pageData[i];
-            var ipsStr = d.ips.join('<br>');
+            var ips = d.ips || [];
+
+            var mainIP = '';
+            var subIPs = [];
+            var hasHiddenMatch = false; // 标记被收纳的 IP 是否命中了搜索词
+
+            // 1. 选举主 IP 和收集次要 IP
+            // 优先找 IPv4
+            for (var j = 0; j < ips.length; j++) {
+                if (ips[j].indexOf('.') >= 0) {
+                    if (!mainIP) mainIP = ips[j];
+                    else subIPs.push(ips[j]);
+                }
+            }
+            // 如果没找到 IPv4，找公网 IPv6
+            for (var j = 0; j < ips.length; j++) {
+                if (ips[j].indexOf(':') >= 0 && !ips[j].startsWith('fe80')) {
+                    if (!mainIP) mainIP = ips[j];
+                    else subIPs.push(ips[j]);
+                }
+            }
+            // 剩下的兜底 IP（如 fe80 链路本地等）
+            for (var j = 0; j < ips.length; j++) {
+                if (ips[j] !== mainIP && subIPs.indexOf(ips[j]) < 0) {
+                    subIPs.push(ips[j]);
+                }
+            }
+            // 如果连主 IP 都没选出来，拿第一个兜底
+            if (!mainIP && ips.length > 0) {
+                mainIP = ips[0];
+                subIPs = ips.slice(1);
+            }
+
+            // 2. 检查被隐藏的次要 IP 是否包含了搜索关键字
+            if (term && subIPs.length > 0) {
+                for (var k = 0; k < subIPs.length; k++) {
+                    if (subIPs[k].toLowerCase().indexOf(term) >= 0) {
+                        hasHiddenMatch = true;
+                        break;
+                    }
+                }
+            }
+
+            // 3. 构建第一列的 HTML
+            var ipColumnHtml = '';
+            if (subIPs.length === 0) {
+                // 只有一个 IP，正常显示
+                ipColumnHtml = '<strong>' + (mainIP || '--') + '</strong>';
+            } else {
+                // 有多个 IP，使用 details 标签折叠。如果命中了隐藏 IP 搜索，则默认带上 open 属性
+                var openAttr = hasHiddenMatch ? ' open' : '';
+                ipColumnHtml = '<details class="ipv6-collapse"' + openAttr + '>' +
+                    '<summary>' +
+                    '<strong>' + mainIP + '</strong>' +
+                    '<span class="ip-count-badge">(+' + subIPs.length + ' 个 IP)</span>' +
+                    '</summary>' +
+                    '<div class="ip-list-box">';
+                for (var m = 0; m < subIPs.length; m++) {
+                    // 如果该次要 IP 是触发搜索的项，可以加个高亮样式（这里用粗体示范，也可以用 background）
+                    var isMatched = term && subIPs[m].toLowerCase().indexOf(term) >= 0;
+                    var style = isMatched ? 'style="color:#d9534f; font-weight:bold;"' : '';
+                    ipColumnHtml += '<div ' + style + '>' + subIPs[m] + '</div>';
+                }
+                ipColumnHtml += '</div></details>';
+            }
+
+            // 4. 组装整行
             html += '<tr>' +
-                '<td class="ip-col"><strong>' + ipsStr + '</strong></td>' +
+                '<td class="ip-col">' + ipColumnHtml + '</td>' +
                 '<td>' + (d.mac.startsWith('unknown_') ? '--' : d.mac) + '</td>' +
                 '<td>' + (d.hostname || '--') + '</td>' +
                 '<td style="color:#5cb85c;">' + formatBytes(d.download) + '</td>' +
