@@ -629,7 +629,7 @@ function traffic_stats()
 		result.yearly = sqlite_query(
 			string.format("SELECT year, upload, download FROM traffic_yearly WHERE year = '%s';", date_val))
 		result.ip = sqlite_query(
-			string.format("SELECT ip, mac, hostname, SUM(upload) as upload, SUM(download) as download FROM traffic_ip_daily WHERE date LIKE '%s-%%' GROUP BY ip ORDER BY (upload+download) DESC LIMIT 200;", date_val))
+			string.format("SELECT mac, ip_list, hostname, SUM(upload) as upload, SUM(download) as download FROM traffic_ip_daily WHERE date LIKE '%s-%%' GROUP BY mac ORDER BY (upload+download) DESC LIMIT 200;", date_val))
 
 	elseif period == "month" then
 		result.daily = sqlite_query(
@@ -637,7 +637,7 @@ function traffic_stats()
 		result.monthly = sqlite_query(
 			string.format("SELECT month, upload, download FROM traffic_monthly WHERE month = '%s';", date_val))
 		result.ip = sqlite_query(
-			string.format("SELECT ip, mac, hostname, SUM(upload) as upload, SUM(download) as download FROM traffic_ip_daily WHERE date LIKE '%s-%%' GROUP BY ip ORDER BY (upload+download) DESC LIMIT 200;", date_val))
+			string.format("SELECT mac, ip_list, hostname, SUM(upload) as upload, SUM(download) as download FROM traffic_ip_daily WHERE date LIKE '%s-%%' GROUP BY mac ORDER BY (upload+download) DESC LIMIT 200;", date_val))
 
 	else
 		local now_time = os.date("%H:%M")
@@ -646,7 +646,7 @@ function traffic_stats()
 		result.global = sqlite_query(
 			string.format("SELECT date, upload, download, updated_at FROM traffic_daily WHERE date = '%s';", date_val))
 		result.ip = sqlite_query(
-			string.format("SELECT ip, mac, hostname, upload, download FROM traffic_ip_daily WHERE date = '%s' ORDER BY (upload+download) DESC LIMIT 200;", date_val))
+			string.format("SELECT mac, ip_list, hostname, upload, download FROM traffic_ip_daily WHERE date = '%s' ORDER BY (upload+download) DESC LIMIT 200;", date_val))
 	end
 
 	luci.http.write(json.stringify(result))
