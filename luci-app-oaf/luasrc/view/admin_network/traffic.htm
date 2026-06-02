@@ -208,23 +208,24 @@
             }
         }
 
-        // 自动选择最佳单位
-        var allValues = upData.concat(downData);
-        var maxVal = Math.max.apply(null, allValues);
+        // 选择单位：日视图固定 MB，月/年视图自动
         var unit, divisor;
-        if (maxVal >= 1099511627776) { unit = 'TB'; divisor = 1099511627776; }
-        else if (maxVal >= 1073741824) { unit = 'GB'; divisor = 1073741824; }
-        else if (maxVal >= 1048576) { unit = 'MB'; divisor = 1048576; }
-        else { unit = 'KB'; divisor = 1024; }
+        if (currentPeriod == 'day') {
+            unit = 'MB'; divisor = 1048576;
+        } else {
+            var allValues = upData.concat(downData);
+            var maxVal = Math.max.apply(null, allValues);
+            if (maxVal >= 1099511627776) { unit = 'TB'; divisor = 1099511627776; }
+            else if (maxVal >= 1073741824) { unit = 'GB'; divisor = 1073741824; }
+            else if (maxVal >= 1048576) { unit = 'MB'; divisor = 1048576; }
+            else { unit = 'KB'; divisor = 1024; }
+        }
 
         // 按选定单位转换数据
         for (var i = 0; i < upData.length; i++) {
             upData[i] = Math.round(upData[i] / divisor * 10) / 10;
             downData[i] = Math.round(downData[i] / divisor * 10) / 10;
         }
-
-        // 日视图固定用 MB
-        if (currentPeriod == 'day') { unit = 'MB'; divisor = 1048576; }
 
         var isBar = currentPeriod != 'day';
         var option = {
