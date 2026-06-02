@@ -55,9 +55,9 @@ function traffic_stats()
         result.yearly = sqlite_query(
             string.format("SELECT year, upload, download FROM traffic_yearly WHERE year = '%s';",
                 date_val))
-        -- 年度视图：按 IP 聚合全年数据
+        -- 年度视图：按 MAC 聚合全年数据
         result.ip = sqlite_query(
-            string.format("SELECT ip, mac, hostname, SUM(upload) as upload, SUM(download) as download FROM traffic_ip_daily WHERE date LIKE '%s-%%' GROUP BY ip ORDER BY (upload+download) DESC LIMIT 200;",
+            string.format("SELECT mac, ip_list, hostname, SUM(upload) as upload, SUM(download) as download FROM traffic_ip_daily WHERE date LIKE '%s-%%' GROUP BY mac ORDER BY (upload+download) DESC LIMIT 200;",
                 date_val))
 
     elseif period == "month" then
@@ -68,9 +68,9 @@ function traffic_stats()
         result.monthly = sqlite_query(
             string.format("SELECT month, upload, download FROM traffic_monthly WHERE month = '%s';",
                 date_val))
-        -- 月份视图：按 IP 聚合当月数据
+        -- 月份视图：按 MAC 聚合当月数据
         result.ip = sqlite_query(
-            string.format("SELECT ip, mac, hostname, SUM(upload) as upload, SUM(download) as download FROM traffic_ip_daily WHERE date LIKE '%s-%%' GROUP BY ip ORDER BY (upload+download) DESC LIMIT 200;",
+            string.format("SELECT mac, ip_list, hostname, SUM(upload) as upload, SUM(download) as download FROM traffic_ip_daily WHERE date LIKE '%s-%%' GROUP BY mac ORDER BY (upload+download) DESC LIMIT 200;",
                 date_val))
 
     else -- period == "day"
@@ -82,9 +82,9 @@ function traffic_stats()
         result.global = sqlite_query(
             string.format("SELECT date, upload, download, updated_at FROM traffic_daily WHERE date = '%s';",
                 date_val))
-        -- 日视图：当天每个 IP 的流量
+        -- 日视图：当天每个设备的流量
         result.ip = sqlite_query(
-            string.format("SELECT ip, mac, hostname, upload, download FROM traffic_ip_daily WHERE date = '%s' ORDER BY (upload+download) DESC LIMIT 200;",
+            string.format("SELECT mac, ip_list, hostname, upload, download FROM traffic_ip_daily WHERE date = '%s' ORDER BY (upload+download) DESC LIMIT 200;",
                 date_val))
     end
 

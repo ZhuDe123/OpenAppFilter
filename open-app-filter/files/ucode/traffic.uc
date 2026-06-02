@@ -76,7 +76,19 @@ function init_db() {
     popen(sprintf("sqlite3 %s 'CREATE TABLE IF NOT EXISTS traffic_monthly (month TEXT PRIMARY KEY, upload BIGINT DEFAULT 0, download BIGINT DEFAULT 0, updated_at INTEGER);'", sq(DB_PATH)))?.close();
     popen(sprintf("sqlite3 %s 'CREATE TABLE IF NOT EXISTS traffic_yearly (year TEXT PRIMARY KEY, upload BIGINT DEFAULT 0, download BIGINT DEFAULT 0, updated_at INTEGER);'", sq(DB_PATH)))?.close();
     popen(sprintf("sqlite3 %s 'CREATE TABLE IF NOT EXISTS traffic_minute (date TEXT NOT NULL, time TEXT NOT NULL, upload BIGINT DEFAULT 0, download BIGINT DEFAULT 0, PRIMARY KEY(date, time));'", sq(DB_PATH)))?.close();
-    popen(sprintf("sqlite3 %s 'CREATE TABLE IF NOT EXISTS traffic_ip_daily (date TEXT NOT NULL, ip TEXT NOT NULL, mac TEXT, hostname TEXT, upload BIGINT DEFAULT 0, download BIGINT DEFAULT 0, PRIMARY KEY(date, ip));'", sq(DB_PATH)))?.close();
+    // Schema migration: v1->v2, old PRIMARY KEY(date, ip) -> PRIMARY KEY(date, mac)
+    let old_schema = popen(sprintf("sqlite3 %s \"SELECT sql FROM sqlite_master WHERE name='traffic_ip_daily' AND sql LIKE '%%PRIMARY KEY(date, ip)%%';\";", sq(DB_PATH)));
+    let has_old = old_schema ? trim(old_schema.read('all') || '') : '';
+    if (old_schema) old_schema.close();
+    if (has_old) {
+        popen(sprintf("sqlite3 %s 'ALTER TABLE traffic_ip_daily RENAME TO traffic_ip_daily_old;'", sq(DB_PATH)))?.close();
+        popen(sprintf("sqlite3 %s 'CREATE TABLE traffic_ip_daily (date TEXT NOT NULL, mac TEXT NOT NULL, ip_list TEXT, hostname TEXT, upload BIGINT DEFAULT 0, download BIGINT DEFAULT 0, PRIMARY KEY(date, mac));'", sq(DB_PATH)))?.close();
+        popen(sprintf("sqlite3 %s 'INSERT INTO traffic_ip_daily (date, mac, hostname, upload, download) SELECT date, mac, hostname, upload, download FROM traffic_ip_daily_old;'", sq(DB_PATH)))?.close();
+        popen(sprintf("sqlite3 %s 'DROP TABLE traffic_ip_daily_old;'", sq(DB_PATH)))?.close();
+        log("Schema migration: traffic_ip_daily primary key changed to (date, mac)");
+    }
+
+    popen(sprintf("sqlite3 %s 'CREATE TABLE IF NOT EXISTS traffic_ip_daily (date TEXT NOT NULL, mac TEXT NOT NULL, ip_list TEXT, hostname TEXT, upload BIGINT DEFAULT 0, download BIGINT DEFAULT 0, PRIMARY KEY(date, mac));'", sq(DB_PATH)))?.close();
 
     // 索引
     popen(sprintf("sqlite3 %s 'CREATE INDEX IF NOT EXISTS idx_daily_date ON traffic_daily(date);'", sq(DB_PATH)))?.close();
@@ -84,8 +96,7 @@ function init_db() {
     popen(sprintf("sqlite3 %s 'CREATE INDEX IF NOT EXISTS idx_yearly_year ON traffic_yearly(year);'", sq(DB_PATH)))?.close();
     popen(sprintf("sqlite3 %s 'CREATE INDEX IF NOT EXISTS idx_minute_date ON traffic_minute(date, time);'", sq(DB_PATH)))?.close();
     popen(sprintf("sqlite3 %s 'CREATE INDEX IF NOT EXISTS idx_ip_daily_date ON traffic_ip_daily(date);'", sq(DB_PATH)))?.close();
-    popen(sprintf("sqlite3 %s 'CREATE INDEX IF NOT EXISTS idx_ip_daily_ip ON traffic_ip_daily(ip);'", sq(DB_PATH)))?.close();
-    popen(sprintf("sqlite3 %s 'CREATE INDEX IF NOT EXISTS idx_ip_daily_mac ON traffic_ip_daily(mac);'", sq(DB_PATH)))?.close();
+    // idx_ip_daily_mac and idx_ip_daily_ip are implicit via PRIMARY KEY(date, mac)
 
     chmod(DB_PATH, 0600);
 
@@ -195,17 +206,7 @@ function collect_traffic() {
         let up_delta = compute_delta(global_up, old_global_up);
         let down_delta = compute_delta(global_down, old_global_down);
 
-        let ip_deltas = {};
-        for (let i = 0; i < length(devices); i++) {
-            let d = devices[i];
-            let primary_ip = d.ips[0];
-            let key = 'ip:' + primary_ip;
-            let old_ip = old[key];
-            ip_deltas[primary_ip] = {
-                up: compute_delta(d.up, old_ip?.up || 0),
-                down: compute_delta(d.down, old_ip?.down || 0)
-            };
-        }
+        // per-MAC delta is computed inline in the Step 5 INSERT loop
 
         // ===== Step 5: 构建批量 SQL =====
         let now = time();
@@ -227,38 +228,41 @@ function collect_traffic() {
         sql += sprintf("INSERT INTO traffic_minute (date, time, upload, download) VALUES ('%s', '%s', %d, %d) ON CONFLICT(date, time) DO UPDATE SET upload=upload+%d, download=download+%d;\n",
             today, time_str, up_delta, down_delta, up_delta, down_delta);
 
-        // 每 IP 每日表 — 所有 IP 各一行，流量只计在主 IP（ips[0]）上
+        // 每设备每日表 — 以 MAC 为主键，delta 基于 MAC 快照计算，所有 IP 记录到 ip_list
         for (let i = 0; i < length(devices); i++) {
             let d = devices[i];
-            let primary_ip = d.ips[0];
-            let delta = ip_deltas[primary_ip];
             let safe_mac = sq(d.mac);
             let safe_host = sq(d.hostname);
+
+            // 从快照查该 MAC 的旧累积值，计算 delta
+            let mac_key = 'mac:' + d.mac;
+            let old_mac = old[mac_key];
+            let d_up = compute_delta(d.up, old_mac?.up || 0);
+            let d_down = compute_delta(d.down, old_mac?.down || 0);
+
+            // 收集所有 IP 到 ip_list（逗号分隔）
+            let ip_list_str = '';
             for (let j = 0; j < length(d.ips); j++) {
-                let sip = d.ips[j];
-                let safe_ip = sq(sip);
-                let d_up = (j == 0) ? delta.up : 0;
-                let d_down = (j == 0) ? delta.down : 0;
-                sql += sprintf("INSERT INTO traffic_ip_daily (date, ip, mac, hostname, upload, download) VALUES ('%s', %s, %s, %s, %d, %d) ON CONFLICT(date, ip) DO UPDATE SET upload=upload+%d, download=download+%d, mac=%s, hostname=%s;\n",
-                    today, safe_ip, safe_mac, safe_host,
-                    d_up, d_down, d_up, d_down,
-                    safe_mac, safe_host);
+                if (j > 0) ip_list_str += ',';
+                ip_list_str += d.ips[j];
             }
+            let safe_ip_list = sq(ip_list_str);
+
+            sql += sprintf("INSERT INTO traffic_ip_daily (date, mac, ip_list, hostname, upload, download) VALUES ('%s', %s, %s, %s, %d, %d) ON CONFLICT(date, mac) DO UPDATE SET upload=upload+%d, download=download+%d, ip_list=%s, hostname=%s;\n",
+                today, safe_mac, safe_ip_list, safe_host,
+                d_up, d_down, d_up, d_down,
+                safe_ip_list, safe_host);
         }
 
-        // 更新快照 — 只用主 IP
+        // 更新快照（MAC 级，不受 IP 漂移影响）
         sql += sprintf("INSERT OR REPLACE INTO traffic_last_capture (key, upload, download, last_seen) VALUES ('global', %d, %d, %d);\n",
             global_up, global_down, now);
         for (let i = 0; i < length(devices); i++) {
             let d = devices[i];
-            let primary_ip = d.ips[0];
-            let safe_key = sq('ip:' + primary_ip);
+            let safe_key = sq('mac:' + d.mac);
             sql += sprintf("INSERT OR REPLACE INTO traffic_last_capture (key, upload, download, last_seen) VALUES (%s, %d, %d, %d);\n",
                 safe_key, d.up, d.down, now);
         }
-
-        // 清理过期的 IP 快照（超过 10 分钟未见的 IP 删除）
-        sql += sprintf("DELETE FROM traffic_last_capture WHERE key LIKE 'ip:%%' AND (last_seen < %d OR last_seen IS NULL);\n", now - 600);
 
         sql += "COMMIT;\n";
 
@@ -337,8 +341,6 @@ function restore() {
     popen(sprintf("sqlite3 %s 'CREATE INDEX IF NOT EXISTS idx_yearly_year ON traffic_yearly(year);'", sq(DB_PATH)))?.close();
     popen(sprintf("sqlite3 %s 'CREATE INDEX IF NOT EXISTS idx_minute_date ON traffic_minute(date, time);'", sq(DB_PATH)))?.close();
     popen(sprintf("sqlite3 %s 'CREATE INDEX IF NOT EXISTS idx_ip_daily_date ON traffic_ip_daily(date);'", sq(DB_PATH)))?.close();
-    popen(sprintf("sqlite3 %s 'CREATE INDEX IF NOT EXISTS idx_ip_daily_ip ON traffic_ip_daily(ip);'", sq(DB_PATH)))?.close();
-    popen(sprintf("sqlite3 %s 'CREATE INDEX IF NOT EXISTS idx_ip_daily_mac ON traffic_ip_daily(mac);'", sq(DB_PATH)))?.close();
 
     chmod(DB_PATH, 0600);
     log("Database restored successfully");
@@ -362,7 +364,7 @@ function query_stats(period, date_val) {
         if (m) { let r = m.read('all'); m.close(); if (r && match(r, /^\s*\[/)) mon = trim(r); }
         let y = popen(sprintf("sqlite3 -json %s 'SELECT * FROM traffic_yearly WHERE year=\"%s\";'", sq(db), date_val));
         if (y) { let r = y.read('all'); y.close(); if (r && match(r, /^\s*\[/)) yea = trim(r); }
-        let i = popen(sprintf("sqlite3 -json %s 'SELECT ip, mac, hostname, SUM(upload) as upload, SUM(download) as download FROM traffic_ip_daily WHERE date LIKE \"%s-%%\" GROUP BY ip ORDER BY (upload+download) DESC LIMIT 200;'", sq(db), date_val));
+        let i = popen(sprintf("sqlite3 -json %s 'SELECT mac, ip_list, hostname, SUM(upload) as upload, SUM(download) as download FROM traffic_ip_daily WHERE date LIKE \"%s-%%\" GROUP BY mac ORDER BY (upload+download) DESC LIMIT 200;'", sq(db), date_val));
         if (i) { let r = i.read('all'); i.close(); if (r && match(r, /^\s*\[/)) ip = trim(r); }
         return sprintf('{"monthly":%s,"yearly":%s,"ip":%s}', mon, yea, ip);
     }
@@ -373,7 +375,7 @@ function query_stats(period, date_val) {
         if (d) { let r = d.read('all'); d.close(); if (r && match(r, /^\s*\[/)) dly = trim(r); }
         let m = popen(sprintf("sqlite3 -json %s 'SELECT month, upload, download FROM traffic_monthly WHERE month=\"%s\";'", sq(db), date_val));
         if (m) { let r = m.read('all'); m.close(); if (r && match(r, /^\s*\[/)) mon = trim(r); }
-        let i = popen(sprintf("sqlite3 -json %s 'SELECT ip, mac, hostname, SUM(upload) as upload, SUM(download) as download FROM traffic_ip_daily WHERE date LIKE \"%s-%%\" GROUP BY ip ORDER BY (upload+download) DESC LIMIT 200;'", sq(db), date_val));
+        let i = popen(sprintf("sqlite3 -json %s 'SELECT mac, ip_list, hostname, SUM(upload) as upload, SUM(download) as download FROM traffic_ip_daily WHERE date LIKE \"%s-%%\" GROUP BY mac ORDER BY (upload+download) DESC LIMIT 200;'", sq(db), date_val));
         if (i) { let r = i.read('all'); i.close(); if (r && match(r, /^\s*\[/)) ip = trim(r); }
         return sprintf('{"daily":%s,"monthly":%s,"ip":%s}', dly, mon, ip);
     }
@@ -385,7 +387,7 @@ function query_stats(period, date_val) {
     if (mi) { let r = mi.read('all'); mi.close(); if (r && match(r, /^\s*\[/)) min = trim(r); }
     let g = popen(sprintf("sqlite3 -json %s 'SELECT date, upload, download, updated_at FROM traffic_daily WHERE date=\"%s\";'", sq(db), date_val));
     if (g) { let r = g.read('all'); g.close(); if (r && match(r, /^\s*\[/)) glo = trim(r); }
-    let i = popen(sprintf("sqlite3 -json %s 'SELECT ip, mac, hostname, upload, download FROM traffic_ip_daily WHERE date=\"%s\" ORDER BY (upload+download) DESC LIMIT 200;'", sq(db), date_val));
+    let i = popen(sprintf("sqlite3 -json %s 'SELECT mac, ip_list, hostname, upload, download FROM traffic_ip_daily WHERE date=\"%s\" ORDER BY (upload+download) DESC LIMIT 200;'", sq(db), date_val));
     if (i) { let r = i.read('all'); i.close(); if (r && match(r, /^\s*\[/)) ip = trim(r); }
     return sprintf('{"minute":%s,"global":%s,"ip":%s}', min, glo, ip);
 }

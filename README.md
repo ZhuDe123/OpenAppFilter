@@ -29,7 +29,7 @@ Packets → kernel netfilter FORWARD hook → real-time counters → ubus API
 - **Data source**: Leverages the kernel module's existing traffic counters (`today_up_bytes` / `today_down_bytes`) — no additional hooks required.
 - **Storage**: SQLite database at `/tmp/oaf/traffic.db` (tmpfs), auto-backed up to `/etc/oaf/traffic.db.bak` (flash), restored on reboot.
 - **Granularity**: Per-minute samples (for daily line chart), daily/monthly/yearly roll-ups.
-- **Device view**: Tracked by IP with MAC and hostname; frontend aggregates by MAC. Both IPv4 and IPv6 are supported.
+- **Device view**: Per-MAC aggregation with all IPs (IPv4 + IPv6) stored in `ip_list`. The frontend displays all IPs per device with collapsible details. Snapshot tracking is MAC-based to prevent IP drift issues — traffic is always correctly attributed to the same device regardless of IP assignment changes.
 - **Retention**: Configurable — defaults are 90 days (daily), 12 months, 5 years.
 - **Performance**: Sampling every 60 seconds with negligible CPU/memory impact.
 

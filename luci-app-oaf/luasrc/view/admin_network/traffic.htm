@@ -115,16 +115,20 @@
         return result;
     }
 
-    // ==== 按 MAC 聚合 IP 数据 ====
+    // ==== 按 MAC 聚合 IP 数据（新 schema：每 MAC 一行 + ip_list 逗号分隔）====
     function aggregateByMAC(ipList) {
         var macMap = {};
         for (var i = 0; i < ipList.length; i++) {
             var d = ipList[i];
-            var mac = d.mac || ('unknown_' + (d.ip || ''));
+            var mac = d.mac || 'unknown';
             if (!macMap[mac]) {
                 macMap[mac] = { ips: [], mac: mac, hostname: d.hostname || '', upload: 0, download: 0 };
             }
-            if (d.ip && macMap[mac].ips.indexOf(d.ip) < 0) macMap[mac].ips.push(d.ip);
+            // Parse ip_list (comma-separated) into ips array
+            var ips = d.ip_list ? d.ip_list.split(',') : [];
+            for (var k = 0; k < ips.length; k++) {
+                if (ips[k] && macMap[mac].ips.indexOf(ips[k]) < 0) macMap[mac].ips.push(ips[k]);
+            }
             macMap[mac].upload += (d.upload || 0);
             macMap[mac].download += (d.download || 0);
             if (d.hostname) macMap[mac].hostname = d.hostname;
