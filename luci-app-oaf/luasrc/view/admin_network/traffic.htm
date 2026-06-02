@@ -189,26 +189,43 @@
             minutes = aggregateMinuteData(minutes);
             for (var i = 0; i < minutes.length; i++) {
                 xData.push(minutes[i].time);
-                upData.push(Math.round((minutes[i].upload || 0) / 1048576 * 10) / 10);
-                downData.push(Math.round((minutes[i].download || 0) / 1048576 * 10) / 10);
+                upData.push((minutes[i].upload || 0));
+                downData.push((minutes[i].download || 0));
             }
         } else if (currentPeriod == 'month') {
             var days = data.daily || [];
             for (var i = 0; i < days.length; i++) {
                 xData.push((days[i].date || '').substring(8));
-                upData.push(Math.round((days[i].upload || 0) / 1073741824 * 10) / 10);
-                downData.push(Math.round((days[i].download || 0) / 1073741824 * 10) / 10);
+                upData.push((days[i].upload || 0));
+                downData.push((days[i].download || 0));
             }
         } else {
             var months = data.monthly || [];
             for (var i = 0; i < months.length; i++) {
                 xData.push((months[i].month || '').substring(5));
-                upData.push(Math.round((months[i].upload || 0) / 1073741824 * 10) / 10);
-                downData.push(Math.round((months[i].download || 0) / 1073741824 * 10) / 10);
+                upData.push((months[i].upload || 0));
+                downData.push((months[i].download || 0));
             }
         }
 
-        var unit = currentPeriod == 'day' ? 'MB' : 'GB';
+        // 自动选择最佳单位
+        var allValues = upData.concat(downData);
+        var maxVal = Math.max.apply(null, allValues);
+        var unit, divisor;
+        if (maxVal >= 1099511627776) { unit = 'TB'; divisor = 1099511627776; }
+        else if (maxVal >= 1073741824) { unit = 'GB'; divisor = 1073741824; }
+        else if (maxVal >= 1048576) { unit = 'MB'; divisor = 1048576; }
+        else { unit = 'KB'; divisor = 1024; }
+
+        // 按选定单位转换数据
+        for (var i = 0; i < upData.length; i++) {
+            upData[i] = Math.round(upData[i] / divisor * 10) / 10;
+            downData[i] = Math.round(downData[i] / divisor * 10) / 10;
+        }
+
+        // 日视图固定用 MB
+        if (currentPeriod == 'day') { unit = 'MB'; divisor = 1048576; }
+
         var isBar = currentPeriod != 'day';
         var option = {
             tooltip: {
@@ -218,14 +235,18 @@
                     for (var i = 0; i < params.length; i++) {
                         var v = params[i].value || 0;
                         var vStr;
-                        if (unit == 'MB') {
+                        if (unit == 'TB') {
+                            if (v < 1) { vStr = (v * 1024).toFixed(1) + ' GB'; }
+                            else { vStr = v.toFixed(2) + ' TB'; }
+                        } else if (unit == 'GB') {
+                            if (v < 1) { vStr = (v * 1024).toFixed(1) + ' MB'; }
+                            else { vStr = v.toFixed(1) + ' GB'; }
+                        } else if (unit == 'MB') {
                             if (v < 1) { vStr = (v * 1024).toFixed(1) + ' KB'; }
                             else if (v >= 1024) { vStr = (v / 1024).toFixed(2) + ' GB'; }
                             else { vStr = v.toFixed(1) + ' MB'; }
                         } else {
-                            if (v < 1) { vStr = (v * 1024).toFixed(1) + ' MB'; }
-                            else if (v >= 1024) { vStr = (v / 1024).toFixed(2) + ' TB'; }
-                            else { vStr = v.toFixed(1) + ' GB'; }
+                            vStr = v.toFixed(1) + ' KB';
                         }
                         html += params[i].marker + ' ' + params[i].seriesName + ': ' + vStr + '<br/>';
                     }
