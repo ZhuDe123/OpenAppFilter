@@ -1,3 +1,5 @@
+module("luci.controller.oaf_split", package.seeall)
+
 local utl = require "luci.util"
 
 function index()
