@@ -684,7 +684,17 @@ void update_oaf_app_filter_mode_status(void){
 }
 
 void update_oaf_split_time_status(void){
-    update_oaf_proc_value("split_time", g_af_config.time.split_time == 1 ? "1" : "0");
+    // 非上网时长模式时强制关闭 split_time
+    int val = (g_af_config.time.time_mode == 2 && g_af_config.time.split_time == 1) ? 1 : 0;
+    update_oaf_proc_value("split_time", val ? "1" : "0");
+    if (!val) {
+        // 关闭 split_time 时清空所有内核封锁状态
+        FILE *fp = fopen("/proc/sys/oaf/blocked_macs", "w");
+        if (fp) {
+            fprintf(fp, "clear");
+            fclose(fp);
+        }
+    }
 }
 
 
