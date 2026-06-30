@@ -4,11 +4,11 @@
 
 extern rwlock_t af_client_lock;
 
-extern struct list_head af_client_list_table[MAX_AF_CLIENT_HASH_SIZE];
 
 extern u32 nfc_debug_level;
 
 #define MAX_AF_CLIENT_HASH_SIZE 64
+extern struct list_head af_client_list_table[MAX_AF_CLIENT_HASH_SIZE];
 #define NF_CLIENT_TIMER_EXPIRE 1
 #define MAX_CLIENT_ACTIVE_TIME 90
 
