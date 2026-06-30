@@ -2470,6 +2470,11 @@ static int handle_cmd(struct ubus_context *ctx, struct ubus_object *obj,
         printf("handle_cmd: unknown action: %s\n", action);
     }
     
+    // 清除时长后立即触发守护进程重新检查时间限制，避免等待最长 10 秒
+    if (ret == 0 && strcmp(action, "clear_active_time") == 0) {
+        g_oaf_config_change = 1;
+    }
+    
     json_object_object_add(response, "code", json_object_new_int(ret));
     json_object_object_add(response, "message", json_object_new_string(result_msg));
     
