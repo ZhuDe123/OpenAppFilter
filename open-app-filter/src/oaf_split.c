@@ -112,25 +112,19 @@ void af_split_sync_blocked_macs(void)
     int i;
     FILE *fp;
 
-    // 每条指令单独写入，确保内核 handler 正确解析
     fp = fopen("/proc/sys/oaf/blocked_macs", "w");
     if (fp) {
-        fprintf(fp, "clear");
-        fclose(fp);
-    }
-
-    for (i = 0; i < MAX_DEV_NODE_HASH_SIZE; i++) {
-        dev_node_t *node = dev_hash_table[i];
-        while (node) {
-            if (node->is_selected && node->period_blocked) {
-                fp = fopen("/proc/sys/oaf/blocked_macs", "w");
-                if (fp) {
-                    fprintf(fp, "+%s", node->mac);
-                    fclose(fp);
+        fprintf(fp, "clear\n");
+        for (i = 0; i < MAX_DEV_NODE_HASH_SIZE; i++) {
+            dev_node_t *node = dev_hash_table[i];
+            while (node) {
+                if (node->is_selected && node->period_blocked) {
+                    fprintf(fp, "+%s\n", node->mac);
                 }
+                node = node->next;
             }
-            node = node->next;
         }
+        fclose(fp);
     }
 }
 
@@ -159,7 +153,7 @@ void reset_one_user_today_active_time(const char *mac)
                 // 同步解锁内核
                 FILE *fp = fopen("/proc/sys/oaf/blocked_macs", "w");
                 if (fp) {
-                    fprintf(fp, "-%s", mac);
+                    fprintf(fp, "-%s\n", mac);
                     fclose(fp);
                 }
                 return;
