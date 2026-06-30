@@ -6,24 +6,44 @@
 #include <stdlib.h>
 #include <time.h>
 #include <stdarg.h>
+#include <sys/stat.h>
 #include "utils.h"
 
 #define LOG_FILE_PATH "/tmp/log/appfilter.log"
-#define OAF_VERSION "6.1.8"
+#define LOG_FILE_MAX_SIZE (512 * 1024)
 
-typedef enum {
-    LOG_LEVEL_ERROR,
-	LOG_LEVEL_WARN,
-    LOG_LEVEL_INFO,
-    LOG_LEVEL_DEBUG
-} LogLevel;
-
+static int log_level = LOG_LEVEL_WARN;
 extern int current_log_level;
 
- static void af_log(LogLevel level, const char *format, ...){
+static void af_log(LogLevel level, const char *format, ...){
     if (level > current_log_level) 
         return;
-    
+
+    // 日志文件超过 512KB 时截断，仅保留最后 64KB
+    if (LOG_FILE_PATH[0]) {
+        struct stat st;
+        if (stat(LOG_FILE_PATH, &st) == 0 && st.st_size > LOG_FILE_MAX_SIZE) {
+            FILE *old = fopen(LOG_FILE_PATH, "r");
+            FILE *newf = fopen("/tmp/log/appfilter.log.tmp", "w");
+            if (old && newf) {
+                long tail_start = st.st_size - 65536;
+                if (tail_start > 0) {
+                    fseek(old, tail_start, SEEK_SET);
+                    char buf[4096];
+                    size_t n;
+                    while ((n = fread(buf, 1, sizeof(buf), old)) > 0)
+                        fwrite(buf, 1, n, newf);
+                }
+                fclose(newf);
+                fclose(old);
+                rename("/tmp/log/appfilter.log.tmp", LOG_FILE_PATH);
+            } else {
+                if (old) fclose(old);
+                if (newf) fclose(newf);
+            }
+        }
+    }
+
     FILE *log_file = fopen(LOG_FILE_PATH, "a");
     if (!log_file) {
         perror("Failed to open log file");
