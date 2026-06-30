@@ -91,49 +91,39 @@ static int oaf_blocked_macs_handler(struct ctl_table *table, int write,
 }
 
 /*
- * debug_blocked handler — 读取时输出所有被选中设备的封锁状态
+ * debug_blocked handler — 读取时输出所有设备的封锁状态
  */
+static char g_debug_blocked_buf[2048];
+
 static int oaf_debug_blocked_handler(struct ctl_table *table, int write,
                                      void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	char *kbuf;
 	int pos = 0, i;
 
 	if (write)
-		return 0;  // 只读
+		return 0;
 
-	kbuf = kzalloc(2048, GFP_KERNEL);
-	if (!kbuf)
-		return -ENOMEM;
+	if (*ppos == 0) {
+		memset(g_debug_blocked_buf, 0, sizeof(g_debug_blocked_buf));
+		pos += snprintf(g_debug_blocked_buf + pos, sizeof(g_debug_blocked_buf) - pos,
+		                "split_time=%d  enable=%d  app_filter_mode=%d\n\n",
+		                g_split_time, g_oaf_filter_enable, g_app_filter_mode);
 
-	pos += snprintf(kbuf + pos, 2048 - pos, "split_time=%d  enable=%d  app_filter_mode=%d\n\n",
-	                g_split_time, g_oaf_filter_enable, g_app_filter_mode);
-
-	AF_CLIENT_LOCK_R();
-	for (i = 0; i < MAX_AF_CLIENT_HASH_SIZE; i++) {
-		struct list_head *p;
-		list_for_each(p, &af_client_list_table[i]) {
-			af_client_info_t *c = list_entry(p, af_client_info_t, hlist);
-			pos += snprintf(kbuf + pos, 2048 - pos,
-			                "MAC:" MAC_FMT "  period_blocked=%d  -> %s\n",
-			                MAC_ARRAY(c->mac), c->period_blocked,
-			                c->period_blocked ? "DROP" : "ACCEPT");
+		AF_CLIENT_LOCK_R();
+		for (i = 0; i < MAX_AF_CLIENT_HASH_SIZE; i++) {
+			struct list_head *p;
+			list_for_each(p, &af_client_list_table[i]) {
+				af_client_info_t *c = list_entry(p, af_client_info_t, hlist);
+				pos += snprintf(g_debug_blocked_buf + pos, sizeof(g_debug_blocked_buf) - pos,
+				                "MAC:" MAC_FMT "  period_blocked=%d  -> %s\n",
+				                MAC_ARRAY(c->mac), c->period_blocked,
+				                c->period_blocked ? "DROP" : "ACCEPT");
+			}
 		}
-	}
-	AF_CLIENT_UNLOCK_R();
-
-	if (pos >= *lenp)
-		pos = *lenp;
-
-	if (copy_to_user(buffer, kbuf, pos)) {
-		kfree(kbuf);
-		return -EFAULT;
+		AF_CLIENT_UNLOCK_R();
 	}
 
-	kfree(kbuf);
-	*lenp = pos;
-	*ppos += pos;
-	return 0;
+	return proc_dostring(table, write, buffer, lenp, ppos);
 }
 
 /* 
@@ -261,8 +251,8 @@ static struct ctl_table oaf_table[] = {
 	},
 	{
 		.procname	= "debug_blocked",
-		.data		= NULL,
-		.maxlen 	= 2048,
+		.data		= g_debug_blocked_buf,
+		.maxlen 	= sizeof(g_debug_blocked_buf),
 		.mode		= 0444,
 		.proc_handler	= oaf_debug_blocked_handler,
 	},
