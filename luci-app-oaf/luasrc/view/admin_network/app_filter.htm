@@ -1244,7 +1244,6 @@
 
         function clearUserTime(mac, btn) {
             if (!mac) return;
-            if (!confirm('<%:Clear active time for this device?%>')) return;
             btn.disabled = true;
             btn.textContent = '<%:Clearing...%>';
             new XHR().post('<%=url('admin/network/oaf_split_clear_dev')%>',
