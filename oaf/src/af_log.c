@@ -5,6 +5,7 @@
 #include <linux/list.h>
 #include <linux/sysctl.h>
 #include <linux/uaccess.h>
+#include <linux/in6.h>
 #include "app_filter.h"
 #include "af_log.h"
 #include "af_client.h"
