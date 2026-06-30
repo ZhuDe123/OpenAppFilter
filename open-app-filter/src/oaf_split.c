@@ -167,7 +167,7 @@ void reset_one_user_today_active_time(const char *mac)
                 // 同步解锁内核
                 FILE *fp = fopen("/proc/sys/oaf/blocked_macs", "w");
                 if (fp) {
-                    fprintf(fp, "-%s\n", mac);
+                    fprintf(fp, "-%s", mac);
                     fclose(fp);
                 }
                 return;
