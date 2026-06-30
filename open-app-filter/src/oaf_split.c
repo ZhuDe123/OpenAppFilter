@@ -137,7 +137,7 @@ void af_split_sync_blocked_macs(void)
                 if (fp) {
                     fprintf(fp, "+%s", node->mac);
                     fclose(fp);
-                    LOG_INFO("split sync: blocked device %s\n", node->mac);
+                    LOG_DEBUG("split sync: blocked device %s\n", node->mac);
                 } else {
                     LOG_WARN("split sync: fopen blocked_macs failed for +%s\n", node->mac);
                 }
