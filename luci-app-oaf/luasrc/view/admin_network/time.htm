@@ -845,8 +845,25 @@
                         if (dayEnabled) {
                             infoDiv.style.display = 'block';
                             let html = `<div><strong><%:Today is%>: ${currentWeekdayName}</strong></div>`;
-                            html += buildProgressBar('<%:AM%>', amUsed, amLimit);
-                            html += buildProgressBar('<%:PM%>', pmUsed, pmLimit);
+                            
+                            if (time_data.split_time == 1 && time_data.dev_time_list && time_data.dev_time_list.length > 0) {
+                                // Split mode: 各设备独立进度条
+                                time_data.dev_time_list.forEach(function(devItem) {
+                                    var devName = (devItem.name && devItem.name !== '') ? devItem.name : devItem.mac;
+                                    var dAm = devItem.am_used || 0;
+                                    var dPm = devItem.pm_used || 0;
+                                    var blockIcon = devItem.blocked == 1 ? ' ⛔' : '';
+                                    html += `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; border-left: 3px solid ${devItem.blocked == 1 ? '#d93025' : '#1a73e8'};">`;
+                                    html += `<div style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">${devName}${blockIcon}</div>`;
+                                    html += buildProgressBar('<%:AM%>', dAm, amLimit);
+                                    html += buildProgressBar('<%:PM%>', dPm, pmLimit);
+                                    html += `</div>`;
+                                });
+                            } else {
+                                // 共享模式：汇总进度条
+                                html += buildProgressBar('<%:AM%>', amUsed, amLimit);
+                                html += buildProgressBar('<%:PM%>', pmUsed, pmLimit);
+                            }
                             contentDiv.innerHTML = html;
                         } else {
                             infoDiv.style.display = 'block';

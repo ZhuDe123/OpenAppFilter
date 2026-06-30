@@ -1342,8 +1342,9 @@
                                     runDescElement.textContent = `(<%:Currently in dynamic time mode,will close in%> ${data.data.remain_time} <%:minutes%>)`;
                                 }
                             } else {
-                                runStatusElement.textContent = '<%:Not Running%>';
-                                runStatusElement.style.color = 'red'; 
+                                // config_enable=1 但 enable=0：规则已配置，尚无设备超时
+                                runStatusElement.textContent = '<%:Monitoring%>';
+                                runStatusElement.style.color = '#e8a317';  // 琥珀色
                                 if (data.data.time_mode == 1) {
                                     if (data.data.match_time == 0) {
                                         runDescElement.textContent = `(<%:Current time is not within the time range%>)`;
@@ -1351,7 +1352,7 @@
                                         runDescElement.textContent = `(<%:Currently in dynamic time mode,will start in%> ${data.data.remain_time} <%:minutes%>)`;
                                     }
                                 } else if (data.data.time_mode == 2) {
-                                    // Mode 2: 不在运行状态后显示用量，下方有进度条展示
+                                    // Mode 2: 监控中或无设备超时
                                 } else {
                                     runDescElement.textContent = `(<%:Current time is not within the time range%>)`;
                                 }
@@ -1381,8 +1382,26 @@
                             mode2InfoDiv.style.display = 'block';
                             let html = `<div style="display:flex; align-items:center; justify-content:space-between;"><strong><%:Today is%>: ${currentWeekdayName}</strong><span style="opacity:0.6; font-size:12px;"><%:Active Users%>: ${selectedUserCount}</span></div>`;
                             if (dayEnabled) {
-                                html += buildProgressBar('<%:AM%>', amUsed, amLimit);
-                                html += buildProgressBar('<%:PM%>', pmUsed, pmLimit);
+                                // 检查是否为 split mode（有 dev_time_list 则表示独立设备模式）
+                                var devTimeList = data.data.dev_time_list;
+                                if (devTimeList && devTimeList.length > 0) {
+                                    // 各设备独立进度条
+                                    devTimeList.forEach(function(devItem) {
+                                        var devName = (devItem.name && devItem.name !== '') ? devItem.name : devItem.mac;
+                                        var dAm = devItem.am_used || 0;
+                                        var dPm = devItem.pm_used || 0;
+                                        var blockIcon = devItem.blocked == 1 ? ' ⛔' : '';
+                                        html += `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; border-left: 3px solid ${devItem.blocked == 1 ? '#d93025' : '#1a73e8'};">`;
+                                        html += `<div style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">${devName}${blockIcon}</div>`;
+                                        html += buildProgressBar('<%:AM%>', dAm, amLimit);
+                                        html += buildProgressBar('<%:PM%>', dPm, pmLimit);
+                                        html += `</div>`;
+                                    });
+                                } else {
+                                    // 共享模式：汇总进度条
+                                    html += buildProgressBar('<%:AM%>', amUsed, amLimit);
+                                    html += buildProgressBar('<%:PM%>', pmUsed, pmLimit);
+                                }
                             } else {
                                 html += `<div style="margin-top: 8px; opacity: 0.6;"><%:Time limit not enabled for today%></div>`;
                             }

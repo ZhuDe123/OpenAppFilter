@@ -461,6 +461,24 @@ msgstr "当前为动态时间模式，下次关闭等待时间:"
 msgid "Not Running"
 msgstr "未运行"
 
+msgid "Monitoring"
+msgstr "监控中"
+
+msgid "Clear All Devices"
+msgstr "清空全部设备"
+
+msgid "Clear this device's active time?"
+msgstr "确定清空此设备的上网时长？"
+
+msgid "Clear Time"
+msgstr "清空时长"
+
+msgid "Clearing..."
+msgstr "清空中..."
+
+msgid "No managed devices"
+msgstr "无可管控设备"
+
 msgid "Current time is not within the time range"
 msgstr "当前时间不在时间范围内"
 
