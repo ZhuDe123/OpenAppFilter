@@ -217,7 +217,7 @@
     }
     
     .advanced-content {
-        display: block;
+        display: none;
     }
     
     .advanced-content.expanded {
@@ -1054,11 +1054,11 @@
                 </div>
           
                 <div class="advanced-settings">
-                    <div class="advanced-toggle expanded" onclick="toggleAdvanced(this)">
+                    <div class="advanced-toggle" onclick="toggleAdvanced(this)">
                         <span class="arrow"></span>
                         <span><%:Advanced Settings%></span>
                     </div>
-                    <div class="advanced-content expanded">
+                    <div class="advanced-content">
                         <div class="weekday-selector" style="margin-bottom: 15px;">
                             <label><%:Weekday Selection%>：</label>
                             <div class="weekday-item"><input type="checkbox" name="weekday" value="1" onchange="clearDynamicWeekdayError()"> <%:Mon%></div>
