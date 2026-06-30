@@ -164,6 +164,34 @@ cat /proc/sys/oaf/debug_blocked
 - **原因**：状态变化日志检测放在 `af_split_check_period_limit` 中，但 `reset_one_user_today_active_time` 直接设 `period_blocked=0` 后再检查时已无变化
 - **修复**：`UNBLOCKED` 日志移到 `reset_one_user_today_active_time` 中，在 `period_blocked` 从 1 变 0 前打印
 
+### Bug 13：`period_blocked` 无条件 NF_DROP，导致指定应用模式也全部拦截
+
+- **文件**：`oaf/src/app_filter.c`
+- **症状**：指定应用模式下，时间用完→全部拦截，用户想看百度也不行
+- **原因**：`if (split_blocked) return NF_DROP` 无条件执行，未检查当前过滤模式
+- **修复**：改为 `if (split_active && split_blocked && g_app_filter_mode == 1) return NF_DROP`，指定应用模式继续走到 `match_app_filter_rule`
+
+### Bug 14：未超时设备未跳过过滤，app filter 仍生效
+
+- **文件**：`oaf/src/app_filter.c`
+- **症状**：指定应用模式下，时间未用完但抖音仍被 app filter 拦截
+- **原因**：用户设计是 app filter 仅在时间用完后生效，但之前实现是未超时设备仍走到 `match_app_filter_rule`
+- **修复**：新增 `if (split_active && !split_blocked) goto EXIT`，时间未用完时跳过所有过滤
+
+### Bug 15：切换模式后仍被封锁
+
+- **文件**：`open-app-filter/src/main.c`
+- **症状**：从上网时长模式切换到固定时间模式后，之前超时的设备仍被封锁
+- **原因**：切换模式后内核 `g_split_time` 未重置，`period_blocked` 也未清空
+- **修复**：`update_oaf_split_time_status()` 改为非 mode=2 时写 `split_time=0` 并 `clear blocked_macs`
+
+### Bug 12：`UNBLOCKED` 日志未触发
+
+- **文件**：`open-app-filter/src/oaf_split.c`
+- **症状**：清空设备时长后，日志未打印 `UNBLOCKED`
+- **原因**：状态变化日志检测放在 `af_split_check_period_limit` 中，但 `reset_one_user_today_active_time` 直接设 `period_blocked=0` 后再检查时已无变化
+- **修复**：`UNBLOCKED` 日志移到 `reset_one_user_today_active_time` 中，在 `period_blocked` 从 1 变 0 前打印
+
 ---
 
 ## 三、文件改动总览
