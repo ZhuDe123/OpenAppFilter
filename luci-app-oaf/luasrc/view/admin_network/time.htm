@@ -229,9 +229,9 @@
 <script type="text/javascript">//<![CDATA[
 
 let time_data1 = {
-    "time_list":[{"start":"00:00","end":"23:59"}, {"start":"00:00","end":"23:59"}],
-    "weekday_list":[1,2,3,4,5,6,0],
-    "mode":1
+    "time_list": [{"start": "00:00", "end": "23:59"}, {"start": "00:00", "end": "23:59"}],
+    "weekday_list": [1, 2, 3, 4, 5, 6, 0],
+    "mode": 1
 }
 let time_data = {}
 
@@ -273,7 +273,9 @@ function init_data() {
 
 function getAppFilterTimeData() {
     return new Promise((resolve, reject) => {
-        new XHR().get('<%=url('admin/network/get_app_filter_time')%>', null,
+        new XHR().get('<%=url('
+        admin / network / get_app_filter_time
+        ')%>', null,
             function (x, data) {
                 time_data = data.data;
                 console.log(data.data);
@@ -290,7 +292,8 @@ function getAppFilterTimeData() {
 
                 resolve();
             }
-    );
+    )
+        ;
     });
 }
 
@@ -385,18 +388,19 @@ function submitHandle() {
         // If any error found, prevent submission
         if (firstErrorInput) {
             firstErrorInput.focus();
-            firstErrorInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            firstErrorInput.scrollIntoView({behavior: 'smooth', block: 'center'});
             return;
         }
     }
 
 
-
-    var data_str=JSON.stringify(time_data);
+    var data_str = JSON.stringify(time_data);
 
     var xhr = new XHR();
-    xhr.post('<%=url('admin/network/set_app_filter_time')%>', {
-        data:data_str
+    xhr.post('<%=url('
+    admin / network / set_app_filter_time
+    ')%>', {
+        data: data_str
     },
         function (x, data) {
             const modal = document.getElementById('modal');
@@ -407,7 +411,8 @@ function submitHandle() {
                 location.reload();
             }, 1000);
         }
-);
+)
+    ;
 
 
 }
@@ -427,7 +432,8 @@ function toggleClearMenu(e) {
         menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'block' : 'none';
     }
 }
-document.addEventListener('click', function() {
+
+document.addEventListener('click', function () {
     var menu = document.getElementById('clearMenuContent');
     if (menu) menu.style.display = 'none';
 });
@@ -453,8 +459,8 @@ function buildPerDevClearList(devTimeList) {
             a.style.color = '#d9534f';
             a.textContent = '⛔ ' + a.textContent;
         }
-        a.onclick = (function(mac) {
-            return function(e) {
+        a.onclick = (function (mac) {
+            return function (e) {
                 e.stopPropagation();
                 clearActiveTime(mac);
             };
@@ -475,22 +481,33 @@ function clearActiveTime(mac) {
         clearBtn.textContent = '<%:Clearing...%>';
     }
 
-    var payload = { action: 'clear_active_time' };
+    var payload = {action: 'clear_active_time'};
     if (mac) {
         payload.mac = mac;
         if (!confirm('<%:Clear this device\'s active time?%>')) {
-            if (clearBtn) { clearBtn._clearing = false; clearBtn.textContent = 'Clear ▾'; }
+            if (clearBtn) {
+                clearBtn._clearing = false;
+                clearBtn.textContent = 'Clear ▾';
+            }
             return;
         }
     } else {
         if (!confirm('<%:Are you sure you want to clear active time of all users?%>')) {
-            if (clearBtn) { clearBtn._clearing = false; clearBtn.textContent = 'Clear ▾'; }
+            if (clearBtn) {
+                clearBtn._clearing = false;
+                clearBtn.textContent = 'Clear ▾';
+            }
             return;
         }
     }
-    new XHR().post('<%=url('admin/network/oaf_split_clear_dev')%>', payload,
+    new XHR().post('<%=url('
+    admin / network / oaf_split_clear_dev
+    ')%>', payload,
         function (x, data) {
-            if (clearBtn) { clearBtn._clearing = false; clearBtn.textContent = 'Clear ▾'; }
+            if (clearBtn) {
+                clearBtn._clearing = false;
+                clearBtn.textContent = 'Clear ▾';
+            }
             if (data && data.code === 0) {
                 const modal = document.getElementById('modal');
                 modal.style.display = 'flex';
@@ -504,7 +521,9 @@ function clearActiveTime(mac) {
             } else {
                 alert(data ? (data.message || '<%:Failed to clear active time%>') : '<%:Failed to clear active time%>');
             }
-        });
+        }
+)
+    ;
 }
 
 function onSplitTimeChange() {
@@ -525,28 +544,37 @@ function onSplitTimeChange() {
 
 function saveSplitTimeConfig() {
     // 先清空所有设备时长
-    var payload = { action: 'clear_active_time' };
-    new XHR().post('<%=url('admin/network/oaf_split_clear_dev')%>', payload,
-        function(x, data) {
+    var payload = {action: 'clear_active_time'};
+    new XHR().post('<%=url('
+    admin / network / oaf_split_clear_dev
+    ')%>', payload,
+        function (x, data) {
             // 不论清空是否成功，立即保存 UCI 配置
             var timeData = getTimeFormData();
             var dataStr = JSON.stringify(timeData);
-            new XHR().post('<%=url('admin/network/set_app_filter_time')%>',
-                { data: dataStr },
-                function(x2, resp) {
+            new XHR().post('<%=url('
+            admin / network / set_app_filter_time
+            ')%>',
+                {data: dataStr},
+                function (x2, resp) {
                     const modal = document.getElementById('modal');
                     modal.style.display = 'flex';
-                    setTimeout(function() {
+                    setTimeout(function () {
                         modal.style.display = 'none';
                         location.reload();
                     }, 1000);
                 }
-        );
-        });
+        )
+            ;
+        }
+)
+    ;
 }
 
 function getAppFilterBaseData() {
-    new XHR().get('<%=url('admin/network/get_app_filter_base')%>', null,
+    new XHR().get('<%=url('
+    admin / network / get_app_filter_base
+    ')%>', null,
         function (x, data) {
             if (data.data.enable == 1) {
                 document.getElementById('filterSwitch').checked = true;
@@ -556,7 +584,8 @@ function getAppFilterBaseData() {
             document.getElementById('workMode').value = data.data.work_mode;
 
         }
-);
+)
+    ;
 }
 
 function addTimeRow() {
@@ -848,17 +877,13 @@ function renderTimeData() {
 
                     if (time_data.split_time == 1 && time_data.dev_time_list && time_data.dev_time_list.length > 0) {
                         // Split mode: 各设备独立进度条
-                        time_data.dev_time_list.forEach(function(devItem) {
+                        time_data.dev_time_list.forEach(function (devItem) {
                             var devName = (devItem.name && devItem.name !== '') ? devItem.name : devItem.mac;
                             var dAm = devItem.am_used || 0;
                             var dPm = devItem.pm_used || 0;
                             var blockIcon = devItem.blocked == 1 ? ' ⛔' : '';
-                            var macAttr = devItem.mac.replace(/'/g, '');
                             html += `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; border-left: 3px solid ${devItem.blocked == 1 ? '#d93025' : '#1a73e8'};">`;
-                            html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">`;
-                            html += `<span style="font-weight: bold; font-size: 13px;">${devName}${blockIcon}</span>`;
-                            html += `<button type="button" class="cbi-button cbi-button-reset" style="padding: 1px 8px; font-size: 11px;" onclick="clearActiveTime('${macAttr}')"><%:Clear%></button>`;
-                            html += `</div>`;
+                            html += `<div style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">${devName}${blockIcon}</div>`;
                             html += buildProgressBar('<%:AM%>', dAm, amLimit);
                             html += buildProgressBar('<%:PM%>', dPm, pmLimit);
                             html += `</div>`;
@@ -888,11 +913,12 @@ function renderTimeData() {
         if (splitToggle) {
             splitToggle.checked = (time_data.split_time == 1);
         }
+        // 构建各设备清空下拉列表
+        buildPerDevClearList(time_data.dev_time_list);
     }
-}
 
-toggleModeContent();
-addTimeValidation();
+    toggleModeContent();
+    addTimeValidation();
 }
 
 function validateDynamicTime() {
@@ -991,12 +1017,12 @@ function validateDailyLimit(weekday, period) {
 window.onload = init_data;
 //]]></script>
 
-<div id="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1000; justify-content: center; align-items: center;">
+<div id="modal"
+     style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1000; justify-content: center; align-items: center;">
     <div style="background-color: rgba(0, 0, 0, 0.5); padding: 10px; border-radius: 5px; text-align: center; width: 100px; height: 70px; color: white; display: flex; justify-content: center; align-items: center;">
         <p style="margin: 0;color: white;"><%:Settings saved successfully%></p>
     </div>
 </div>
-
 
 
 <div class="cbi-section cbi-tblsection">
@@ -1041,7 +1067,9 @@ window.onload = init_data;
 
             <div id="dynamicTimeContent" style="display: none;">
                 <div style="opacity: 0.6; font-size: 13px; margin-bottom: 15px;">
-                    <%:Dynamic time mode refers to dynamically adjusting app filter switches, such as allowing children to play games for 20 minutes after studying for 1 hour, automatically enabling filtering after exceeding entertainment time, and repeating the cycle.%>
+                    <%:Dynamic time mode refers to dynamically adjusting app filter switches, such as allowing children
+                    to play games for 20 minutes after studying for 1 hour, automatically enabling filtering after
+                    exceeding entertainment time, and repeating the cycle.%>
                 </div>
 
                 <div class="dynamic-time-settings">
@@ -1064,21 +1092,38 @@ window.onload = init_data;
                         <div class="advanced-content expanded">
                             <div class="weekday-selector" style="margin-bottom: 15px;">
                                 <label><%:Weekday Selection%>：</label>
-                                <div class="weekday-item"><input type="checkbox" name="weekday" value="1" onchange="clearDynamicWeekdayError()"> <%:Mon%></div>
-                                <div class="weekday-item"><input type="checkbox" name="weekday" value="2" onchange="clearDynamicWeekdayError()"> <%:Tue%></div>
-                                <div class="weekday-item"><input type="checkbox" name="weekday" value="3" onchange="clearDynamicWeekdayError()"> <%:Wed%></div>
-                                <div class="weekday-item"><input type="checkbox" name="weekday" value="4" onchange="clearDynamicWeekdayError()"> <%:Thur%></div>
-                                <div class="weekday-item"><input type="checkbox" name="weekday" value="5" onchange="clearDynamicWeekdayError()"> <%:Fri%></div>
-                                <div class="weekday-item"><input type="checkbox" name="weekday" value="6" onchange="clearDynamicWeekdayError()"> <%:Sat%></div>
-                                <div class="weekday-item"><input type="checkbox" name="weekday" value="0" onchange="clearDynamicWeekdayError()"> <%:Sun%></div>
+                                <div class="weekday-item"><input type="checkbox" name="weekday" value="1"
+                                                                 onchange="clearDynamicWeekdayError()"> <%:Mon%>
+                                </div>
+                                <div class="weekday-item"><input type="checkbox" name="weekday" value="2"
+                                                                 onchange="clearDynamicWeekdayError()"> <%:Tue%>
+                                </div>
+                                <div class="weekday-item"><input type="checkbox" name="weekday" value="3"
+                                                                 onchange="clearDynamicWeekdayError()"> <%:Wed%>
+                                </div>
+                                <div class="weekday-item"><input type="checkbox" name="weekday" value="4"
+                                                                 onchange="clearDynamicWeekdayError()"> <%:Thur%>
+                                </div>
+                                <div class="weekday-item"><input type="checkbox" name="weekday" value="5"
+                                                                 onchange="clearDynamicWeekdayError()"> <%:Fri%>
+                                </div>
+                                <div class="weekday-item"><input type="checkbox" name="weekday" value="6"
+                                                                 onchange="clearDynamicWeekdayError()"> <%:Sat%>
+                                </div>
+                                <div class="weekday-item"><input type="checkbox" name="weekday" value="0"
+                                                                 onchange="clearDynamicWeekdayError()"> <%:Sun%>
+                                </div>
                             </div>
-                            <div id="dynamicWeekdayErrorContainer" style="color: red; font-size: 12px; margin-top: 5px; display: none;"></div>
+                            <div id="dynamicWeekdayErrorContainer"
+                                 style="color: red; font-size: 12px; margin-top: 5px; display: none;"></div>
 
                             <div class="setting-item">
                                 <label><%:Daily Study Time Range%>：</label>
-                                <input type="time" id="startTime" required style="margin-right: 5px;" onchange="validateDynamicTime()">
+                                <input type="time" id="startTime" required style="margin-right: 5px;"
+                                       onchange="validateDynamicTime()">
                                 <span>-</span>
-                                <input type="time" id="endTime" required style="margin-left: 5px;" onchange="validateDynamicTime()">
+                                <input type="time" id="endTime" required style="margin-left: 5px;"
+                                       onchange="validateDynamicTime()">
                             </div>
                             <div class="setting-item" style="opacity: 0.6; font-size: 12px; margin-top: 5px;">
                                 <span><%:This time range represents the daily school time period, which is a continuous time period. During this time period, filtering rules are dynamically enabled and disabled. Outside the time range, filtering is disabled by default.%></span>
@@ -1091,21 +1136,27 @@ window.onload = init_data;
 
             <div id="dailyTimeContent" style="display: none;">
                 <div style="opacity: 0.6; font-size: 13px; margin-bottom: 15px;">
-                    <%:Daily time limit mode allows you to set a daily internet time limit for each weekday. Once the limit is reached, internet access will be restricted.%>
+                    <%:Daily time limit mode allows you to set a daily internet time limit for each weekday. Once the
+                    limit is reached, internet access will be restricted.%>
                 </div>
 
                 <!-- 当前上网时长信息显示 -->
-                <div id="currentTimeUsageInfo" style="border: 1px solid #1a73e8; border-radius: 5px; padding: 15px; margin-bottom: 15px; display: none;">
+                <div id="currentTimeUsageInfo"
+                     style="border: 1px solid #1a73e8; border-radius: 5px; padding: 15px; margin-bottom: 15px; display: none;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                         <div style="font-weight: bold; color: #1a73e8; font-size: 14px;">
                             <%:Today Time Usage%>
                         </div>
                         <div id="clearTimeDropdown" style="position: relative; display: inline-block;">
-                            <button type="button" class="clear-time-btn" onclick="toggleClearMenu(event)"><%:Clear%> ▾</button>
-                            <div id="clearMenuContent" class="clear-dropdown-content" style="display: none; position: absolute; right: 0; background: #fff; border: 1px solid #ccc; border-radius: 4px; min-width: 180px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 100;">
-                                <a href="javascript:void(0)" onclick="clearActiveTime()" style="display: block; padding: 8px 16px; color: #d9534f; text-decoration: none;">
+                            <button type="button" class="clear-time-btn" onclick="toggleClearMenu(event)"><%:Clear%> ▾
+                            </button>
+                            <div id="clearMenuContent" class="clear-dropdown-content"
+                                 style="display: none; position: absolute; right: 0; background: #fff; border: 1px solid #ccc; border-radius: 4px; min-width: 220px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 100;">
+                                <a href="javascript:void(0)" onclick="clearActiveTime()"
+                                   style="display: block; padding: 8px 16px; color: #d9534f; text-decoration: none; border-bottom: 1px solid #eee;">
                                     🧹 <%:Clear All Devices%>
                                 </a>
+                                <div id="perDevClearList" style="max-height: 200px; overflow-y: auto;"></div>
                             </div>
                         </div>
                     </div>
@@ -1115,7 +1166,8 @@ window.onload = init_data;
                 </div>
 
                 <!-- 独立设备分时模式开关 -->
-                <div class="cbi-value" id="splitTimeContainer" style="margin: 10px 0; padding: 10px; background: #f9f9f9; border-radius: 5px;">
+                <div class="cbi-value" id="splitTimeContainer"
+                     style="margin: 10px 0; padding: 10px; background: #f9f9f9; border-radius: 5px;">
                     <label class="cbi-value-title" style="font-weight: bold; font-size: 14px;">
                         <%:独立设备时长模式%>
                     </label>
@@ -1142,112 +1194,140 @@ window.onload = init_data;
                     <tbody>
                     <tr>
                         <td><%:Monday%></td>
-                        <td><label class="switch"><input type="checkbox" id="dailyLimit_1_enable" onchange="toggleDailyLimitInputs(1)"><span class="slider"></span></label></td>
+                        <td><label class="switch"><input type="checkbox" id="dailyLimit_1_enable"
+                                                         onchange="toggleDailyLimitInputs(1)"><span
+                                class="slider"></span></label></td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_1_am" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(1, 'am')">
+                                <input type="number" id="dailyLimit_1_am" min="0" max="720" value="0"
+                                       style="padding: 5px;" disabled onblur="validateDailyLimit(1, 'am')">
                                 <div id="dailyLimit_1_am_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_1_pm" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(1, 'pm')">
+                                <input type="number" id="dailyLimit_1_pm" min="0" max="720" value="0"
+                                       style="padding: 5px;" disabled onblur="validateDailyLimit(1, 'pm')">
                                 <div id="dailyLimit_1_pm_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                     </tr>
                     <tr>
                         <td><%:Tuesday%></td>
-                        <td><label class="switch"><input type="checkbox" id="dailyLimit_2_enable" onchange="toggleDailyLimitInputs(2)"><span class="slider"></span></label></td>
+                        <td><label class="switch"><input type="checkbox" id="dailyLimit_2_enable"
+                                                         onchange="toggleDailyLimitInputs(2)"><span
+                                class="slider"></span></label></td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_2_am" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(2, 'am')">
+                                <input type="number" id="dailyLimit_2_am" min="0" max="720" value="0"
+                                       style="padding: 5px;" disabled onblur="validateDailyLimit(2, 'am')">
                                 <div id="dailyLimit_2_am_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_2_pm" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(2, 'pm')">
+                                <input type="number" id="dailyLimit_2_pm" min="0" max="720" value="0"
+                                       style="padding: 5px;" disabled onblur="validateDailyLimit(2, 'pm')">
                                 <div id="dailyLimit_2_pm_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                     </tr>
                     <tr>
                         <td><%:Wednesday%></td>
-                        <td><label class="switch"><input type="checkbox" id="dailyLimit_3_enable" onchange="toggleDailyLimitInputs(3)"><span class="slider"></span></label></td>
+                        <td><label class="switch"><input type="checkbox" id="dailyLimit_3_enable"
+                                                         onchange="toggleDailyLimitInputs(3)"><span
+                                class="slider"></span></label></td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_3_am" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(3, 'am')">
+                                <input type="number" id="dailyLimit_3_am" min="0" max="720" value="0"
+                                       style="padding: 5px;" disabled onblur="validateDailyLimit(3, 'am')">
                                 <div id="dailyLimit_3_am_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_3_pm" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(3, 'pm')">
+                                <input type="number" id="dailyLimit_3_pm" min="0" max="720" value="0"
+                                       style="padding: 5px;" disabled onblur="validateDailyLimit(3, 'pm')">
                                 <div id="dailyLimit_3_pm_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                     </tr>
                     <tr>
                         <td><%:Thursday%></td>
-                        <td><label class="switch"><input type="checkbox" id="dailyLimit_4_enable" onchange="toggleDailyLimitInputs(4)"><span class="slider"></span></label></td>
+                        <td><label class="switch"><input type="checkbox" id="dailyLimit_4_enable"
+                                                         onchange="toggleDailyLimitInputs(4)"><span
+                                class="slider"></span></label></td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_4_am" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(4, 'am')">
+                                <input type="number" id="dailyLimit_4_am" min="0" max="720" value="0"
+                                       style="padding: 5px;" disabled onblur="validateDailyLimit(4, 'am')">
                                 <div id="dailyLimit_4_am_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_4_pm" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(4, 'pm')">
+                                <input type="number" id="dailyLimit_4_pm" min="0" max="720" value="0"
+                                       style="padding: 5px;" disabled onblur="validateDailyLimit(4, 'pm')">
                                 <div id="dailyLimit_4_pm_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                     </tr>
                     <tr>
                         <td><%:Friday%></td>
-                        <td><label class="switch"><input type="checkbox" id="dailyLimit_5_enable" onchange="toggleDailyLimitInputs(5)"><span class="slider"></span></label></td>
+                        <td><label class="switch"><input type="checkbox" id="dailyLimit_5_enable"
+                                                         onchange="toggleDailyLimitInputs(5)"><span
+                                class="slider"></span></label></td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_5_am" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(5, 'am')">
+                                <input type="number" id="dailyLimit_5_am" min="0" max="720" value="0"
+                                       style="padding: 5px;" disabled onblur="validateDailyLimit(5, 'am')">
                                 <div id="dailyLimit_5_am_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_5_pm" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(5, 'pm')">
+                                <input type="number" id="dailyLimit_5_pm" min="0" max="720" value="0"
+                                       style="padding: 5px;" disabled onblur="validateDailyLimit(5, 'pm')">
                                 <div id="dailyLimit_5_pm_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                     </tr>
                     <tr>
                         <td><%:Saturday%></td>
-                        <td><label class="switch"><input type="checkbox" id="dailyLimit_6_enable" onchange="toggleDailyLimitInputs(6)"><span class="slider"></span></label></td>
+                        <td><label class="switch"><input type="checkbox" id="dailyLimit_6_enable"
+                                                         onchange="toggleDailyLimitInputs(6)"><span
+                                class="slider"></span></label></td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_6_am" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(6, 'am')">
+                                <input type="number" id="dailyLimit_6_am" min="0" max="720" value="0"
+                                       style="padding: 5px;" disabled onblur="validateDailyLimit(6, 'am')">
                                 <div id="dailyLimit_6_am_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_6_pm" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(6, 'pm')">
+                                <input type="number" id="dailyLimit_6_pm" min="0" max="720" value="0"
+                                       style="padding: 5px;" disabled onblur="validateDailyLimit(6, 'pm')">
                                 <div id="dailyLimit_6_pm_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                     </tr>
                     <tr>
                         <td><%:Sunday%></td>
-                        <td><label class="switch"><input type="checkbox" id="dailyLimit_0_enable" onchange="toggleDailyLimitInputs(0)"><span class="slider"></span></label></td>
+                        <td><label class="switch"><input type="checkbox" id="dailyLimit_0_enable"
+                                                         onchange="toggleDailyLimitInputs(0)"><span
+                                class="slider"></span></label></td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_0_am" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(0, 'am')">
+                                <input type="number" id="dailyLimit_0_am" min="0" max="720" value="0"
+                                       style="padding: 5px;" disabled onblur="validateDailyLimit(0, 'am')">
                                 <div id="dailyLimit_0_am_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_0_pm" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(0, 'pm')">
+                                <input type="number" id="dailyLimit_0_pm" min="0" max="720" value="0"
+                                       style="padding: 5px;" disabled onblur="validateDailyLimit(0, 'pm')">
                                 <div id="dailyLimit_0_pm_error" class="daily-limit-error"></div>
                             </div>
                         </td>
@@ -1261,7 +1341,10 @@ window.onload = init_data;
         </div>
 
         <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
-            <button type="button" class="submit-button" onclick="location.reload()" style="background: transparent; color: #1a73e8; border: 1px solid var(--border-color-medium, #d1d5db);"><%:Refresh%></button>
+            <button type="button" class="submit-button" onclick="location.reload()"
+                    style="background: transparent; color: #1a73e8; border: 1px solid var(--border-color-medium, #d1d5db);">
+                <%:Refresh%>
+            </button>
             <button type="button" class="submit-button" onclick="submitHandle()"><%:Save%></button>
         </div>
 
