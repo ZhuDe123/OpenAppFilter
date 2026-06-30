@@ -66,10 +66,37 @@ On the Time Configuration page, select "Daily Time Limit" mode, then toggle the 
 - **Off (default)**: All selected devices share a total time budget. Exceeding the limit blocks all devices.
 - **On**: Each device tracks its own time independently. Device A exceeding its limit only blocks device A — device B is unaffected.
 
+### App Filter + Time Limit Interaction
+
+The behavior depends on the App Filter mode:
+
+**Specified Apps mode (e.g. block Douyin):**
+
+| State | Douyin (blocked) | Baidu (allowed) |
+|------|:--------------:|:--------------:|
+| Time not expired | ✅ | ✅ |
+| Time expired | ❌ app filter active | ✅ |
+| Cleared | ✅ restored | ✅ |
+
+> When time is not expired, the device is completely unrestricted (all filters skipped).
+> App filter rules only take effect after time expires, blocking only specified apps.
+> Clearing time restores the "time not expired" state.
+
+**Block All Apps mode:**
+
+| State | Any app |
+|------|:------:|
+| Time not expired | ✅ |
+| Time expired | ❌ |
+| Cleared | ✅ restored |
+
+> When time is not expired, the device is unrestricted. When time expires, all internet access is blocked.
+
 ### Clearing Time Usage
 
 - **Clear All**: Click the "Clear" button on the header bar, confirm, and all devices' time usage is reset.
 - **Clear Single Device**: Click the "Clear" button on each device's progress bar card to reset only that device's time (no confirmation dialog).
+- **Mode Switch**: Switching away from Daily Time Limit mode automatically clears all blocking state.
 
 ### Data Flow
 

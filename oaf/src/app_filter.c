@@ -1490,7 +1490,13 @@ u_int32_t app_filter_hook_gateway_handle(struct sk_buff *skb, struct net_device 
 	}
 	client->update_jiffies = jiffies;
 
-	// 独立设备时长封锁检查（需在锁内读取 period_blocked）
+	// ── split mode per-device 封锁检查 ──
+	// 设计原则：
+	//   1. 时间未用完 → goto EXIT，跳过所有过滤，设备完全不受限
+	//      此时 app filter 规则不生效（即使在指定应用黑名单中也不拦截）
+	//   2. 时间用完 + 全部应用模式 → NF_DROP（全面断网）
+	//   3. 时间用完 + 指定应用模式 → 继续到 match_app_filter_rule
+	//      app filter 仅在此时生效，仅拦截黑名单中的应用
 	int split_blocked = 0;
 	int split_active = 0;   // split mode 且全局过滤开启
 	if (g_split_time && g_oaf_filter_enable) {

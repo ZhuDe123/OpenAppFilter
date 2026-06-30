@@ -555,6 +555,8 @@ int af_check_time_period_limit(af_time_config_t *t_config) {
     int i;
 
     // 独立设备分时模式 → 委托到 oaf_split.c
+    // split_time 为 1 时，每台设备独立计时、独立封锁
+    // split_time 为 0 时，走原有共享总额逻辑
     if (t_config->split_time) {
         return af_split_check_period_limit(t_config);
     }
@@ -684,7 +686,8 @@ void update_oaf_app_filter_mode_status(void){
 }
 
 void update_oaf_split_time_status(void){
-    // 非上网时长模式时强制关闭 split_time
+    // 非上网时长模式时强制关闭 split_time，并清空内核封锁状态
+    // 防止从 mode=2 切换到其他模式后，之前超时的设备仍被 period_blocked 封锁
     int val = (g_af_config.time.time_mode == 2 && g_af_config.time.split_time == 1) ? 1 : 0;
     update_oaf_proc_value("split_time", val ? "1" : "0");
     if (!val) {

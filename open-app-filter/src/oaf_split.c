@@ -74,13 +74,14 @@ int af_split_check_period_limit(af_time_config_t *t_config)
             if (node->is_selected) {
                 u_int32_t current_active = is_morning ? node->today_am_active_time : node->today_pm_active_time;
                 int old_blocked = node->period_blocked;
+                // today_am/pm_active_time 与 max_allowed_time 单位同为分钟（来自 netlink +1/min）
                 if (current_active >= (u_int32_t)max_allowed_time) {
                     node->period_blocked = 1;
                     any_blocked = 1;
                 } else {
                     node->period_blocked = 0;
                 }
-                // 状态变化时记录日志
+                // 只在状态变化时打印（0→1 封禁, 1→0 解封），避免每 10 秒刷屏
                 if (old_blocked != node->period_blocked) {
                     LOG_INFO("device %s %s (blocked=%d, used=%dmin, limit=%dmin)\n",
                              node->mac,
@@ -118,6 +119,7 @@ void af_split_sync_blocked_macs(void)
     FILE *fp;
 
     // 先清空内核全部封锁状态
+    // clear 命令由内核 handler 逐行解析（支持多行写入），清除所有 client->period_blocked
     fp = fopen("/proc/sys/oaf/blocked_macs", "w");
     if (fp) {
         fprintf(fp, "clear");
