@@ -1157,6 +1157,7 @@
                                         <th><%:Device Info%></th>
                                         <th><%:IP Address%></th>
                                         <th><%:Online Status%></th>
+                                        <th><%:Action%></th>
                                     </tr>
                                 </thead>
                                 <tbody id="userListBody"></tbody>
@@ -1212,7 +1213,22 @@
                                         </td>
                                         <td>${user.ip || '--'}</td>
                                         <td>${onlineStatusHtml}</td>
+                                        <td style="text-align: center;">
+                                            <button type="button" class="cbi-button cbi-button-reset clear-user-time-btn" style="padding: 2px 8px; font-size: 12px;" data-mac="${user.mac.replace(/'/g, '&#39;').replace(/"/g, '&quot;')}"><%:Clear Time%></button>
+                                        </td>
                                     `;
+                                    // 用事件委托替代 onclick 属性，避免 MAC 引号问题
+                                    setTimeout(function() {
+                                        var btns = document.querySelectorAll('.clear-user-time-btn');
+                                        btns.forEach(function(btn) {
+                                            if (!btn._clearBound) {
+                                                btn._clearBound = true;
+                                                btn.addEventListener('click', function() {
+                                                    clearUserTime(this.getAttribute('data-mac'), this);
+                                                });
+                                            }
+                                        });
+                                    }, 0);
                                     tbody.appendChild(tr);
                                 });
                             }
@@ -1222,6 +1238,34 @@
                             }
                         }
                     );
+                }
+            );
+        }
+
+        function clearUserTime(mac, btn) {
+            if (!mac) return;
+            if (!confirm('<%:Clear active time for this device?%>')) return;
+            btn.disabled = true;
+            btn.textContent = '<%:Clearing...%>';
+            new XHR().post('<%=url('admin/network/oaf_split_clear_dev')%>',
+                { action: 'clear_active_time', mac: mac },
+                function(x, data) {
+                    btn.disabled = false;
+                    btn.textContent = '<%:Clear Time%>';
+                    if (data && data.code === 0) {
+                        // Refresh the dialog
+                        const dialog = document.getElementById('userDialog');
+                        const content = document.getElementById('userDialogContent');
+                        // Reload config to determine mode
+                        new XHR().get('<%=url('admin/network/get_oaf_status')%>', null,
+                            function(x, statusData) {
+                                const isDynamicMode = statusData.data.time_mode == 1;
+                                loadUserList(dialog, content, isDynamicMode);
+                            }
+                        );
+                    } else {
+                        alert(data ? data.message : '<%:Failed%>');
+                    }
                 }
             );
         }

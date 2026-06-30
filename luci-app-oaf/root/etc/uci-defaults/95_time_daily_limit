@@ -9,6 +9,7 @@ if ! uci -q get appfilter.time.daily_limit_0 >/dev/null 2>&1; then
 		set appfilter.time.daily_limit_4='0:0:0'
 		set appfilter.time.daily_limit_5='0:0:0'
 		set appfilter.time.daily_limit_6='0:0:0'
+		set appfilter.time.split_time='0'
 		set appfilter.global.disable_quic='0'
 		commit appfilter
 	EOF

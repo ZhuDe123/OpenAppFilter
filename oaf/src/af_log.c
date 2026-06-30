@@ -4,8 +4,10 @@
 #include <linux/seq_file.h>
 #include <linux/list.h>
 #include <linux/sysctl.h>
+#include <linux/uaccess.h>
 #include "app_filter.h"
 #include "af_log.h"
+#include "af_client.h"
 int af_log_lvl = 1;
 int af_test_mode = 0;
 // todo: rename af_log.c
@@ -22,6 +24,70 @@ int g_feature_init = 0;
 char g_oaf_version[64] = AF_VERSION;
 int g_disable_quic = 0;
 int g_app_filter_mode = 0; // 0 = specified apps, 1 = all apps
+int g_split_time = 0;   // 新增：独立设备分时模式（0=共享, 1=独立）
+/* 
+	自定义 proc handler：解析用户态写入的封锁/解锁 MAC 指令
+	格式: "+AA:BB:CC:DD:EE:FF" 封锁, "-AA:BB:CC:DD:EE:FF" 解锁, "clear" 全部解锁
+*/
+static int oaf_blocked_macs_handler(struct ctl_table *table, int write,
+                                    void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	char kbuf[64];
+	int i;
+	unsigned char mac[MAC_ADDR_LEN];
+	
+	if (!write)
+		return 0;  // 不支持读取
+
+	if (*lenp >= sizeof(kbuf))
+		return -EINVAL;
+	
+	if (copy_from_user(kbuf, buffer, *lenp))
+		return -EFAULT;
+
+	// 去除尾部换行/回车
+	while (*lenp > 0 && (kbuf[*lenp-1] == '\n' || kbuf[*lenp-1] == '\r'))
+		kbuf[--(*lenp)] = '\0';
+	kbuf[*lenp] = '\0';
+
+	if (strcmp(kbuf, "clear") == 0) {
+		AF_CLIENT_LOCK_W();
+		for (i = 0; i < MAX_AF_CLIENT_HASH_SIZE; i++) {
+			struct list_head *pos;
+			list_for_each(pos, &af_client_list_table[i]) {
+				af_client_info_t *c = list_entry(pos, af_client_info_t, hlist);
+				c->period_blocked = 0;
+			}
+		}
+		AF_CLIENT_UNLOCK_W();
+		return 0;
+	}
+
+	if (*lenp < 18) return -EINVAL;  // 至少要 "+XX:XX:XX:XX:XX:XX"
+
+	char op = kbuf[0];
+	if (op != '+' && op != '-') return -EINVAL;
+
+	if (sscanf(kbuf + 1, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+	           &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]) != 6)
+		return -EINVAL;
+
+	AF_CLIENT_LOCK_W();
+	for (i = 0; i < MAX_AF_CLIENT_HASH_SIZE; i++) {
+		struct list_head *pos;
+		list_for_each(pos, &af_client_list_table[i]) {
+			af_client_info_t *c = list_entry(pos, af_client_info_t, hlist);
+			if (memcmp(c->mac, mac, MAC_ADDR_LEN) == 0) {
+				c->period_blocked = (op == '+') ? 1 : 0;
+				AF_CLIENT_UNLOCK_W();
+				return 0;
+			}
+		}
+	}
+	AF_CLIENT_UNLOCK_W();
+	return 0;
+}
+
 /* 
 	cat /proc/sys/oaf/debug
 */
@@ -130,6 +196,20 @@ static struct ctl_table oaf_table[] = {
 		.maxlen 	= sizeof(int),
 		.mode		= 0666,
 		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "split_time",
+		.data		= &g_split_time,
+		.maxlen 	= sizeof(int),
+		.mode		= 0666,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "blocked_macs",
+		.data		= NULL,
+		.maxlen 	= 64,
+		.mode		= 0222,
+		.proc_handler	= oaf_blocked_macs_handler,
 	},
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 12, 0))
 	{

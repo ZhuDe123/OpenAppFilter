@@ -81,6 +81,7 @@ typedef struct dev_node
 	u_int32_t today_am_active_time;
 	u_int32_t today_pm_active_time;
 	int is_selected; 
+    int period_blocked;   // 新增：逐设备封锁标志（0=放行, 1=封锁）
     struct dev_node *next;
 } dev_node_t;
 

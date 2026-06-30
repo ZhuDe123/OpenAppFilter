@@ -36,6 +36,7 @@ THE SOFTWARE.
 #include "appfilter.h"
 #include <stdio.h>
 #include "utils.h"
+#include "oaf_split.h"
 
 #define CMD_GET_LAN_IP_FMT   "ifconfig %s | grep 'inet addr' | awk '{print $2}' | awk -F: '{print $2}'"
 #define CMD_GET_LAN_MASK_FMT "ifconfig %s | grep 'inet addr' | awk '{print $4}' | awk -F: '{print $2}'"
@@ -152,6 +153,7 @@ void apply_time_config_to_uci(af_time_config_t *time_config){
 		af_uci_set_value(uci_ctx, "appfilter.time.start_time", start_time_str);
 		af_uci_set_value(uci_ctx, "appfilter.time.end_time", end_time_str);
 	}
+	af_uci_set_int_value(uci_ctx, "appfilter.time.split_time", time_config->split_time);
 	af_uci_commit(uci_ctx, "appfilter");
 
 	uci_free_context(uci_ctx);
@@ -171,6 +173,7 @@ int af_load_time_config(af_time_config_t *t_config)
         return -1;
     memset(t_config, 0, sizeof(af_time_config_t));
     t_config->time_mode = af_uci_get_int_value(ctx, "appfilter.time.time_mode");
+    t_config->split_time = af_uci_get_int_value(ctx, "appfilter.time.split_time");
     t_config->deny_time = af_uci_get_int_value(ctx, "appfilter.time.deny_time");
     t_config->allow_time = af_uci_get_int_value(ctx, "appfilter.time.allow_time");
     
@@ -550,6 +553,11 @@ int af_check_time_period_limit(af_time_config_t *t_config) {
     int total_active_time = 0;
     int selected_user_count = 0;
     int i;
+
+    // 独立设备分时模式 → 委托到 oaf_split.c
+    if (t_config->split_time) {
+        return af_split_check_period_limit(t_config);
+    }
 
     time_t now = time(NULL);
     struct tm *current_time = localtime(&now);

@@ -38,6 +38,7 @@ THE SOFTWARE.
 #include <uci.h>
 #include "appfilter.h"
 #include "utils.h"
+#include "oaf_split.h"
 
 extern int g_oaf_config_change;
 int g_enable_agent = 0;
@@ -1071,6 +1072,10 @@ static int handle_get_app_filter_time(struct ubus_context *ctx, struct ubus_obje
     // Get time_mode
     int time_mode = af_uci_get_int_value(uci_ctx, "appfilter.time.time_mode");
     json_object_object_add(data_obj, "mode", json_object_new_int(time_mode));
+    
+    // Get split_time
+    int split_time = af_uci_get_int_value(uci_ctx, "appfilter.time.split_time");
+    json_object_object_add(data_obj, "split_time", json_object_new_int(split_time));
 
     // Get days (global weekday_list)
     char days_str[128] = {0};
@@ -1265,6 +1270,28 @@ static int handle_get_app_filter_time(struct ubus_context *ctx, struct ubus_obje
         json_object_object_add(data_obj, "current_am_used_time", json_object_new_int(total_am_time));
         json_object_object_add(data_obj, "current_pm_used_time", json_object_new_int(total_pm_time));
         
+        // 逐设备时长明细（供前端方案 A 下拉菜单使用）
+        struct json_object *dev_time_list = json_object_new_array();
+        for (i = 0; i < MAX_DEV_NODE_HASH_SIZE; i++) {
+            dev_node_t *n = dev_hash_table[i];
+            while (n) {
+                if (n->is_selected) {
+                    struct json_object *dev_obj = json_object_new_object();
+                    json_object_object_add(dev_obj, "mac", json_object_new_string(n->mac));
+                    json_object_object_add(dev_obj, "name",
+                        json_object_new_string(strlen(n->nickname) > 0 ? n->nickname : n->hostname));
+                    json_object_object_add(dev_obj, "am_used", json_object_new_int(n->today_am_active_time));
+                    json_object_object_add(dev_obj, "pm_used", json_object_new_int(n->today_pm_active_time));
+                    json_object_object_add(dev_obj, "blocked", json_object_new_int(n->period_blocked));
+                    json_object_array_add(dev_time_list, dev_obj);
+                }
+                n = n->next;
+            }
+        }
+        json_object_object_add(data_obj, "dev_time_list", dev_time_list);
+        
+        json_object_object_add(data_obj, "split_time", json_object_new_int(g_af_config.time.split_time));
+        
         daily_limit_config_t *daily_limit = &g_af_config.time.daily_limit[current_weekday];
         json_object_object_add(data_obj, "current_am_limit", json_object_new_int(daily_limit->am_time));
         json_object_object_add(data_obj, "current_pm_limit", json_object_new_int(daily_limit->pm_time));
@@ -1434,6 +1461,11 @@ static int handle_set_app_filter_time(struct ubus_context *ctx, struct ubus_obje
                 printf("daily_limit_%d: %s\n", i, limit_str);
                 af_uci_set_value(uci_ctx, uci_key, limit_str);
             }
+        }
+        // 保存独立设备分时模式开关
+        struct json_object *split_time_obj = json_object_object_get(req_obj, "split_time");
+        if (split_time_obj) {
+            af_uci_set_int_value(uci_ctx, "appfilter.time.split_time", json_object_get_int(split_time_obj));
         }
     }
     af_uci_commit(uci_ctx, "appfilter");
@@ -2117,6 +2149,27 @@ static int handle_get_oaf_status(struct ubus_context *ctx, struct ubus_object *o
         json_object_object_add(data_obj, "current_am_used_time", json_object_new_int(total_am_time));
         json_object_object_add(data_obj, "current_pm_used_time", json_object_new_int(total_pm_time));
         json_object_object_add(data_obj, "selected_user_count", json_object_new_int(selected_user_count));
+        
+        // 逐设备时长明细（供前端方案 A 下拉菜单使用）
+        struct json_object *dev_time_list = json_object_new_array();
+        for (i = 0; i < MAX_DEV_NODE_HASH_SIZE; i++) {
+            dev_node_t *n = dev_hash_table[i];
+            while (n) {
+                if (n->is_selected) {
+                    struct json_object *dev_obj = json_object_new_object();
+                    json_object_object_add(dev_obj, "mac", json_object_new_string(n->mac));
+                    json_object_object_add(dev_obj, "name",
+                        json_object_new_string(strlen(n->nickname) > 0 ? n->nickname : n->hostname));
+                    json_object_object_add(dev_obj, "am_used", json_object_new_int(n->today_am_active_time));
+                    json_object_object_add(dev_obj, "pm_used", json_object_new_int(n->today_pm_active_time));
+                    json_object_object_add(dev_obj, "blocked", json_object_new_int(n->period_blocked));
+                    json_object_array_add(dev_time_list, dev_obj);
+                }
+                n = n->next;
+            }
+        }
+        json_object_object_add(data_obj, "dev_time_list", dev_time_list);
+        
         json_object_object_add(data_obj, "current_am_limit", json_object_new_int(daily_limit->am_time));
         json_object_object_add(data_obj, "current_pm_limit", json_object_new_int(daily_limit->pm_time));
         json_object_object_add(data_obj, "current_day_enabled", json_object_new_int(daily_limit->enable));
@@ -2384,11 +2437,27 @@ static int handle_cmd(struct ubus_context *ctx, struct ubus_object *obj,
     const char *result_msg = NULL;
     
     if (strcmp(action, "clear_active_time") == 0) {
-        // Clear all users' today active time (AM and PM)
-        reset_all_users_today_active_time();
-        result_msg = "Successfully cleared all users' active time";
-        ret = 0;
-        printf("handle_cmd: cleared all users' active time\n");
+        // Support per-device clear: if "mac" parameter present, clear single device
+        struct json_object *mac_obj = json_object_object_get(req_obj, "mac");
+        if (mac_obj) {
+            const char *mac = json_object_get_string(mac_obj);
+            if (mac && strlen(mac) > 0) {
+                reset_one_user_today_active_time(mac);
+                result_msg = "Successfully cleared device active time";
+                ret = 0;
+                printf("handle_cmd: cleared device %s active time\n", mac);
+            } else {
+                reset_all_users_today_active_time();
+                result_msg = "Successfully cleared all users' active time";
+                ret = 0;
+                printf("handle_cmd: cleared all users' active time\n");
+            }
+        } else {
+            reset_all_users_today_active_time();
+            result_msg = "Successfully cleared all users' active time";
+            ret = 0;
+            printf("handle_cmd: cleared all users' active time\n");
+        }
     } else if (strcmp(action, "clear_offline_users") == 0) {
         // Clear all offline users
         flush_offline_users();

@@ -102,6 +102,7 @@ typedef struct af_time_config_t{
     int time_num;
 	time_config_t time_list[MAX_TIME_LIST];
     daily_limit_config_t daily_limit[7];
+    int split_time;   // 新增：0=共享模式, 1=独立设备分时模式
 }af_time_config_t;
 
 typedef struct af_config_t{

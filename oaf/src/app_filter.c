@@ -1489,7 +1489,18 @@ u_int32_t app_filter_hook_gateway_handle(struct sk_buff *skb, struct net_device 
 		return NF_ACCEPT;
 	}
 	client->update_jiffies = jiffies;
+
+	// 独立设备时长封锁检查（需在锁内读取 period_blocked）
+	int split_blocked = 0;
+	if (g_split_time && g_oaf_filter_enable) {
+		split_blocked = client->period_blocked;
+	}
+
 	AF_CLIENT_UNLOCK_R();
+
+	if (split_blocked) {
+		return NF_DROP;
+	}
 
 
 

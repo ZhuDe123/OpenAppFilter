@@ -420,14 +420,78 @@
 			document.getElementById('modal').style.display = 'none';
 		}
 
-        function clearActiveTime() {
-            if (!confirm('<%:Are you sure you want to clear active time of all users?%>')) {
+        function toggleClearMenu(e) {
+            e.stopPropagation();
+            var menu = document.getElementById('clearMenuContent');
+            if (menu) {
+                menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'block' : 'none';
+            }
+        }
+        document.addEventListener('click', function() {
+            var menu = document.getElementById('clearMenuContent');
+            if (menu) menu.style.display = 'none';
+        });
+
+        function buildPerDevClearList(devTimeList) {
+            var container = document.getElementById('perDevClearList');
+            if (!container) return;
+            container.innerHTML = '';
+            if (!devTimeList || devTimeList.length === 0) {
+                container.innerHTML = '<div style="padding: 8px 16px; opacity: 0.5; font-size: 12px;"><%:No managed devices%></div>';
                 return;
             }
-            new XHR().post('<%=url('admin/network/cmd')%>', {
-                action: 'clear_active_time'
-            },
+            for (var idx = 0; idx < devTimeList.length; idx++) {
+                var dev = devTimeList[idx];
+                var a = document.createElement('a');
+                a.href = 'javascript:void(0)';
+                a.setAttribute('data-mac', dev.mac);
+                a.style.cssText = 'display: block; padding: 8px 16px; color: #333; text-decoration: none; border-bottom: 1px solid #f0f0f0; font-size: 13px;';
+                var totalSec = (dev.am_used || 0) + (dev.pm_used || 0);
+                var totalMin = Math.floor(totalSec / 60);
+                var devName = (dev.name && dev.name !== '') ? dev.name : dev.mac;
+                a.textContent = '清空: ' + devName + ' (' + totalMin + '分钟)';
+                if (dev.blocked == 1) {
+                    a.style.color = '#d9534f';
+                    a.textContent = '⛔ ' + a.textContent;
+                }
+                a.onclick = (function(mac) {
+                    return function(e) {
+                        e.stopPropagation();
+                        clearActiveTime(mac);
+                    };
+                })(dev.mac);
+                container.appendChild(a);
+            }
+        }
+
+        function clearActiveTime(mac) {
+            var menu = document.getElementById('clearMenuContent');
+            if (menu) menu.style.display = 'none';
+
+            // 防重复提交 + 加载态
+            var clearBtn = document.querySelector('.clear-time-btn');
+            if (clearBtn) {
+                if (clearBtn._clearing) return;  // 防止重复点击
+                clearBtn._clearing = true;
+                clearBtn.textContent = '<%:Clearing...%>';
+            }
+
+            var payload = { action: 'clear_active_time' };
+            if (mac) {
+                payload.mac = mac;
+                if (!confirm('<%:Clear this device\'s active time?%>')) {
+                    if (clearBtn) { clearBtn._clearing = false; clearBtn.textContent = 'Clear ▾'; }
+                    return;
+                }
+            } else {
+                if (!confirm('<%:Are you sure you want to clear active time of all users?%>')) {
+                    if (clearBtn) { clearBtn._clearing = false; clearBtn.textContent = 'Clear ▾'; }
+                    return;
+                }
+            }
+            new XHR().post('<%=url('admin/network/oaf_split_clear_dev')%>', payload,
             function (x, data) {
+                if (clearBtn) { clearBtn._clearing = false; clearBtn.textContent = 'Clear ▾'; }
                 if (data && data.code === 0) {
                     const modal = document.getElementById('modal');
                     modal.style.display = 'flex'; 
@@ -441,6 +505,44 @@
                 } else {
                     alert(data ? (data.message || '<%:Failed to clear active time%>') : '<%:Failed to clear active time%>');
                 }
+            });
+        }
+
+        function onSplitTimeChange() {
+            var toggle = document.getElementById('splitTimeToggle');
+            if (!toggle) return;
+            if (toggle.checked) {
+                if (!confirm('<%:Switching to split time mode will clear all existing time data. Continue?%>')) {
+                    toggle.checked = false;
+                    return;
+                }
+                // 切换时清空所有时长 + 自动保存
+                saveSplitTimeConfig();
+            } else {
+                // 切回共享模式也清空 + 保存
+                saveSplitTimeConfig();
+            }
+        }
+
+        function saveSplitTimeConfig() {
+            // 先清空所有设备时长
+            var payload = { action: 'clear_active_time' };
+            new XHR().post('<%=url('admin/network/oaf_split_clear_dev')%>', payload,
+            function(x, data) {
+                // 不论清空是否成功，立即保存 UCI 配置
+                var timeData = getTimeFormData();
+                var dataStr = JSON.stringify(timeData);
+                new XHR().post('<%=url('admin/network/set_app_filter_time')%>',
+                    { data: dataStr },
+                    function(x2, resp) {
+                        const modal = document.getElementById('modal');
+                        modal.style.display = 'flex';
+                        setTimeout(function() {
+                            modal.style.display = 'none';
+                            location.reload();
+                        }, 1000);
+                    }
+                );
             });
         }
 
@@ -566,6 +668,9 @@
                     }
                 });
                 timeData.daily_time_list = dailyTimeList;
+                // 收集独立设备分时模式开关
+                var splitToggle = document.getElementById('splitTimeToggle');
+                timeData.split_time = (splitToggle && splitToggle.checked) ? 1 : 0;
             }
 
             return timeData;
@@ -757,6 +862,14 @@
                         currentRow.style.fontWeight = 'bold';
                     }
                 }
+                
+                // 回填 split_time 开关
+                var splitToggle = document.getElementById('splitTimeToggle');
+                if (splitToggle) {
+                    splitToggle.checked = (time_data.split_time == 1);
+                }
+                // 构建各设备清空下拉列表
+                buildPerDevClearList(time_data.dev_time_list);
             }
 
             toggleModeContent();
@@ -968,10 +1081,34 @@
                     <div style="font-weight: bold; color: #1a73e8; font-size: 14px;">
                         <%:Today Time Usage%>
                     </div>
-                    <button type="button" class="clear-time-btn" onclick="clearActiveTime()"><%:Clear%></button>
+                    <div id="clearTimeDropdown" style="position: relative; display: inline-block;">
+                        <button type="button" class="clear-time-btn" onclick="toggleClearMenu(event)"><%:Clear%> ▾</button>
+                        <div id="clearMenuContent" class="clear-dropdown-content" style="display: none; position: absolute; right: 0; background: #fff; border: 1px solid #ccc; border-radius: 4px; min-width: 220px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 100;">
+                            <a href="javascript:void(0)" onclick="clearActiveTime()" style="display: block; padding: 8px 16px; color: #d9534f; text-decoration: none; border-bottom: 1px solid #eee;">
+                                🧹 <%:Clear All Devices%>
+                            </a>
+                            <div id="perDevClearList" style="max-height: 200px; overflow-y: auto;"></div>
+                        </div>
+                    </div>
                 </div>
                 <div id="currentTimeUsageContent" style="font-size: 13px; line-height: 1.8;">
                     <!-- 内容将通过JavaScript填充 -->
+                </div>
+            </div>
+            
+            <!-- 独立设备分时模式开关 -->
+            <div class="cbi-value" id="splitTimeContainer" style="margin: 10px 0; padding: 10px; background: #f9f9f9; border-radius: 5px;">
+                <label class="cbi-value-title" style="font-weight: bold; font-size: 14px;">
+                    <%:Split Time Mode%>
+                </label>
+                <div class="cbi-value-field" style="margin-top: 5px;">
+                    <label class="switch">
+                        <input type="checkbox" id="splitTimeToggle" onchange="onSplitTimeChange()">
+                        <span class="slider"></span>
+                    </label>
+                    <span style="margin-left: 8px; opacity: 0.6; font-size: 12px;">
+                        <%:When enabled, each device has its own independent time limit. Disabled by default (shared total).%>
+                    </span>
                 </div>
             </div>
             

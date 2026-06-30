@@ -1,4 +1,4 @@
-OBJS:=appfilter_user.o appfilter_netlink.o appfilter_ubus.o appfilter_config.o utils.o main.o
+OBJS:=appfilter_user.o appfilter_netlink.o appfilter_ubus.o appfilter_config.o utils.o main.o oaf_split.o
 EXEC:=oafd
 all: $(OBJS)
 	$(CC) -o $(EXEC) $(OBJS) $(LIBS)

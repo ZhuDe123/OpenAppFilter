@@ -4,6 +4,8 @@
 
 extern rwlock_t af_client_lock;
 
+extern struct list_head af_client_list_table[MAX_AF_CLIENT_HASH_SIZE];
+
 extern u32 nfc_debug_level;
 
 #define MAX_AF_CLIENT_HASH_SIZE 64
@@ -85,6 +87,7 @@ typedef struct af_client_info
 	int timer_count;
 	int report_count;
 	app_visit_info_t visit_info[MAX_RECORD_APP_NUM];
+	int period_blocked;   // 新增：逐设备时长封锁标志（0=放行, 1=封锁）
 } af_client_info_t;
 
 int af_client_init(void);
