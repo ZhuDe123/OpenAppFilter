@@ -112,19 +112,26 @@ void af_split_sync_blocked_macs(void)
     int i;
     FILE *fp;
 
+    // 先清空内核全部封锁状态
     fp = fopen("/proc/sys/oaf/blocked_macs", "w");
     if (fp) {
-        fprintf(fp, "clear\n");
-        for (i = 0; i < MAX_DEV_NODE_HASH_SIZE; i++) {
-            dev_node_t *node = dev_hash_table[i];
-            while (node) {
-                if (node->is_selected && node->period_blocked) {
-                    fprintf(fp, "+%s\n", node->mac);
-                }
-                node = node->next;
-            }
-        }
+        fprintf(fp, "clear");
         fclose(fp);
+    }
+
+    // 逐个设备写入（每条一行）
+    for (i = 0; i < MAX_DEV_NODE_HASH_SIZE; i++) {
+        dev_node_t *node = dev_hash_table[i];
+        while (node) {
+            if (node->is_selected && node->period_blocked) {
+                fp = fopen("/proc/sys/oaf/blocked_macs", "w");
+                if (fp) {
+                    fprintf(fp, "+%s", node->mac);
+                    fclose(fp);
+                }
+            }
+            node = node->next;
+        }
     }
 }
 

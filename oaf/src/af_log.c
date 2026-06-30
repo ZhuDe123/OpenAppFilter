@@ -36,70 +36,58 @@ static int oaf_blocked_macs_handler(struct ctl_table *table, int write,
                                     void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	char kbuf[256];
-	int i, linelen;
+	int i;
 	unsigned char mac[MAC_ADDR_LEN];
-	char *line, *next;
-
+	
 	if (!write)
 		return 0;
 
 	if (*lenp >= sizeof(kbuf))
 		return -EINVAL;
-
+	
 	if (copy_from_user(kbuf, buffer, *lenp))
 		return -EFAULT;
+
+	// 去除尾部换行/回车
+	while (*lenp > 0 && (kbuf[*lenp-1] == '\n' || kbuf[*lenp-1] == '\r'))
+		kbuf[--(*lenp)] = '\0';
 	kbuf[*lenp] = '\0';
 
-	line = kbuf;
-	while (line && *line) {
-		while (*line == '\n' || *line == '\r')
-			line++;
-		if (!*line)
-			break;
-
-		next = strchr(line, '\n');
-		if (next)
-			*next++ = '\0';
-
-		linelen = strlen(line);
-		while (linelen > 0 && line[linelen-1] == '\r')
-			line[--linelen] = '\0';
-
-		if (strcmp(line, "clear") == 0) {
-			AF_CLIENT_LOCK_W();
-			for (i = 0; i < MAX_AF_CLIENT_HASH_SIZE; i++) {
-				struct list_head *pos;
-				list_for_each(pos, &af_client_list_table[i]) {
-					af_client_info_t *c = list_entry(pos, af_client_info_t, hlist);
-					c->period_blocked = 0;
-				}
-			}
-			AF_CLIENT_UNLOCK_W();
-			line = next;
-			continue;
-		}
-
-		if (strlen(line) >= 18 && (line[0] == '+' || line[0] == '-')) {
-			if (sscanf(line + 1, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-			           &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]) == 6) {
-				int found = 0;
-				AF_CLIENT_LOCK_W();
-				for (i = 0; i < MAX_AF_CLIENT_HASH_SIZE && !found; i++) {
-					struct list_head *pos;
-					list_for_each(pos, &af_client_list_table[i]) {
-						af_client_info_t *c = list_entry(pos, af_client_info_t, hlist);
-						if (memcmp(c->mac, mac, MAC_ADDR_LEN) == 0) {
-							c->period_blocked = (line[0] == '+') ? 1 : 0;
-							found = 1;
-							break;
-						}
-					}
-				}
-				AF_CLIENT_UNLOCK_W();
+	if (strcmp(kbuf, "clear") == 0) {
+		AF_CLIENT_LOCK_W();
+		for (i = 0; i < MAX_AF_CLIENT_HASH_SIZE; i++) {
+			struct list_head *pos;
+			list_for_each(pos, &af_client_list_table[i]) {
+				af_client_info_t *c = list_entry(pos, af_client_info_t, hlist);
+				c->period_blocked = 0;
 			}
 		}
-		line = next;
+		AF_CLIENT_UNLOCK_W();
+		return 0;
 	}
+
+	if (*lenp < 18) return -EINVAL;
+
+	char op = kbuf[0];
+	if (op != '+' && op != '-') return -EINVAL;
+
+	if (sscanf(kbuf + 1, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+	           &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]) != 6)
+		return -EINVAL;
+
+	AF_CLIENT_LOCK_W();
+	for (i = 0; i < MAX_AF_CLIENT_HASH_SIZE; i++) {
+		struct list_head *pos;
+		list_for_each(pos, &af_client_list_table[i]) {
+			af_client_info_t *c = list_entry(pos, af_client_info_t, hlist);
+			if (memcmp(c->mac, mac, MAC_ADDR_LEN) == 0) {
+				c->period_blocked = (op == '+') ? 1 : 0;
+				AF_CLIENT_UNLOCK_W();
+				return 0;
+			}
+		}
+	}
+	AF_CLIENT_UNLOCK_W();
 	return 0;
 }
 
