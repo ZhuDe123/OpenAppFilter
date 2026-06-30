@@ -1500,7 +1500,7 @@ u_int32_t app_filter_hook_gateway_handle(struct sk_buff *skb, struct net_device 
 
 	AF_CLIENT_UNLOCK_R();
 
-	if (split_blocked) {
+	if (split_blocked && g_app_filter_mode) {
 		return NF_DROP;
 	}
 
