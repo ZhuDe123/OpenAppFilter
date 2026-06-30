@@ -1500,8 +1500,18 @@ u_int32_t app_filter_hook_gateway_handle(struct sk_buff *skb, struct net_device 
 
 	AF_CLIENT_UNLOCK_R();
 
-	if (split_blocked && g_app_filter_mode) {
-		return NF_DROP;
+	if (split_active) {
+		if (split_blocked) {
+			// 时间已用完：开启限制
+			if (g_app_filter_mode == 1) {
+				// 全部应用模式 → 全部拦截
+				return NF_DROP;
+			}
+			// 指定应用模式 → 继续走到 match_app_filter_rule
+		} else {
+			// 时间未用完：跳过所有过滤，设备完全不受限
+			goto EXIT;
+		}
 	}
 
 
