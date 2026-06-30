@@ -166,6 +166,10 @@ void reset_one_user_today_active_time(const char *mac)
             if (strcasecmp(node->mac, mac) == 0) {
                 node->today_am_active_time = 0;
                 node->today_pm_active_time = 0;
+
+                if (node->period_blocked == 1) {
+                    LOG_INFO("device %s UNBLOCKED (cleared by user)\n", node->mac);
+                }
                 node->period_blocked = 0;
                 LOG_DEBUG("reset device %s active time to 0\n", mac);
 
