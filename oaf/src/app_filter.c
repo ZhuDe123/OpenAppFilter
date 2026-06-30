@@ -1629,8 +1629,8 @@ u_int32_t app_filter_hook_gateway_handle(struct sk_buff *skb, struct net_device 
 	}
 	
 	if (g_oaf_filter_enable){
-		// split mode: 未超时设备跳过应用过滤，仅超时设备需受应用过滤限制
-		if (split_active && !split_blocked) {
+		// split mode: 未超时设备跳过"全部应用"拦截，但不跳过指定应用规则
+		if (split_active && !split_blocked && g_app_filter_mode) {
 			goto EXIT;
 		}
 		if (match_app_filter_rule(flow.app_id, client))

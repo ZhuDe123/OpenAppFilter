@@ -112,21 +112,25 @@ void af_split_sync_blocked_macs(void)
     int i;
     FILE *fp;
 
-    // 先清空内核全部封锁状态
+    // 每条指令单独写入，确保内核 handler 正确解析
     fp = fopen("/proc/sys/oaf/blocked_macs", "w");
     if (fp) {
-        fprintf(fp, "clear\n");
-        // 逐个写入当前封锁的设备
-        for (i = 0; i < MAX_DEV_NODE_HASH_SIZE; i++) {
-            dev_node_t *node = dev_hash_table[i];
-            while (node) {
-                if (node->is_selected && node->period_blocked) {
-                    fprintf(fp, "+%s\n", node->mac);
-                }
-                node = node->next;
-            }
-        }
+        fprintf(fp, "clear");
         fclose(fp);
+    }
+
+    for (i = 0; i < MAX_DEV_NODE_HASH_SIZE; i++) {
+        dev_node_t *node = dev_hash_table[i];
+        while (node) {
+            if (node->is_selected && node->period_blocked) {
+                fp = fopen("/proc/sys/oaf/blocked_macs", "w");
+                if (fp) {
+                    fprintf(fp, "+%s", node->mac);
+                    fclose(fp);
+                }
+            }
+            node = node->next;
+        }
     }
 }
 
@@ -152,10 +156,10 @@ void reset_one_user_today_active_time(const char *mac)
                 node->period_blocked = 0;
                 LOG_DEBUG("reset device %s active time to 0\n", mac);
 
-                // 同步解锁内核（使用直接文件写入，避免 shell 注入和 fork 开销）
+                // 同步解锁内核
                 FILE *fp = fopen("/proc/sys/oaf/blocked_macs", "w");
                 if (fp) {
-                    fprintf(fp, "-%s\n", mac);
+                    fprintf(fp, "-%s", mac);
                     fclose(fp);
                 }
                 return;
