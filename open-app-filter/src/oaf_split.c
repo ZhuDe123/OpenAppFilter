@@ -95,7 +95,7 @@ int af_split_check_period_limit(af_time_config_t *t_config)
     g_af_status.remain_time = 0;
     g_af_status.match_time = 1;
 
-    LOG_INFO("split check: any_blocked=%d\n", any_blocked);
+    LOG_DEBUG("split check: any_blocked=%d\n", any_blocked);
     return any_blocked ? 1 : 0;
 }
 
@@ -117,7 +117,7 @@ void af_split_sync_blocked_macs(void)
     if (fp) {
         fprintf(fp, "clear");
         fclose(fp);
-        LOG_INFO("split sync: clear done\n");
+        LOG_DEBUG("split sync: clear done\n");
     } else {
         LOG_WARN("split sync: fopen blocked_macs failed for clear\n");
         return;  // proc 文件不可用，后续也必然失败
