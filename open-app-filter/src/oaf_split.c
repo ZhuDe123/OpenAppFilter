@@ -117,7 +117,7 @@ void af_split_sync_blocked_macs(void)
     if (fp) {
         fprintf(fp, "clear");
         fclose(fp);
-        LOG_DEBUG("split sync: clear done\n");
+        LOG_INFO("split sync: clear done\n");
     } else {
         LOG_WARN("split sync: fopen blocked_macs failed for clear\n");
         return;  // proc 文件不可用，后续也必然失败
@@ -132,7 +132,7 @@ void af_split_sync_blocked_macs(void)
                 if (fp) {
                     fprintf(fp, "+%s", node->mac);
                     fclose(fp);
-                    LOG_DEBUG("split sync: blocked device %s\n", node->mac);
+                    LOG_INFO("split sync: blocked device %s\n", node->mac);
                 } else {
                     LOG_WARN("split sync: fopen blocked_macs failed for +%s\n", node->mac);
                 }
