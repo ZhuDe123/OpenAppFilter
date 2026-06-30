@@ -106,21 +106,21 @@
         text-align: center;
         overflow: visible;
     }
-
+    
     .time-table td {
         vertical-align: top;
     }
-
+    
     .daily-limit-input-wrapper {
         display: flex;
         flex-direction: column;
         align-items: center;
     }
-
+    
     .daily-limit-input-wrapper input {
         width: 150px;
     }
-
+    
     .daily-limit-error {
         color: red;
         font-size: 11px;
@@ -190,7 +190,7 @@
         border-top: 1px solid #ddd;
         padding-top: 15px;
     }
-
+    
     .advanced-toggle {
         display: flex;
         align-items: center;
@@ -199,7 +199,7 @@
         font-size: 14px;
         margin-bottom: 15px;
     }
-
+    
     .advanced-toggle .arrow {
         margin-right: 8px;
         width: 12px;
@@ -211,15 +211,15 @@
         display: inline-block;
         transform: rotate(0deg);
     }
-
+    
     .advanced-toggle.expanded .arrow {
         transform: rotate(90deg);
     }
-
+    
     .advanced-content {
         display: block;
     }
-
+    
     .advanced-content.expanded {
         display: block;
     }
@@ -228,371 +228,342 @@
 
 <script type="text/javascript">//<![CDATA[
 
-let time_data1 = {
-    "time_list": [{"start": "00:00", "end": "23:59"}, {"start": "00:00", "end": "23:59"}],
-    "weekday_list": [1, 2, 3, 4, 5, 6, 0],
-    "mode": 1
-}
-let time_data = {}
+        let time_data1 = {
+            "time_list":[{"start":"00:00","end":"23:59"}, {"start":"00:00","end":"23:59"}],
+            "weekday_list":[1,2,3,4,5,6,0],
+            "mode":1
+        }
+        let time_data = {}
+        
+        function formatTime(minutes) {
+            // 如果值为空或undefined，显示0min
+            if (minutes === undefined || minutes === null || minutes === '') {
+                return '0<%:min%>';
+            }
+            var mins = parseInt(minutes);
+            if (isNaN(mins) || mins < 0) {
+                return '0<%:min%>';
+            }
+            // 如果小于60分钟，直接显示分钟
+            if (mins < 60) {
+                return mins + '<%:min%>';
+            }
+            // 大于等于60分钟，转换为小时和分钟
+            var hours = Math.floor(mins / 60);
+            var remainingMins = mins % 60;
+            if (remainingMins === 0) {
+                return hours + '<%:h%>';
+            } else {
+                return hours + '<%:h%> ' + remainingMins + '<%:min%>';
+            }
+        }
 
-function formatTime(minutes) {
-    // 如果值为空或undefined，显示0min
-    if (minutes === undefined || minutes === null || minutes === '') {
-        return '0<%:min%>';
-    }
-    var mins = parseInt(minutes);
-    if (isNaN(mins) || mins < 0) {
-        return '0<%:min%>';
-    }
-    // 如果小于60分钟，直接显示分钟
-    if (mins < 60) {
-        return mins + '<%:min%>';
-    }
-    // 大于等于60分钟，转换为小时和分钟
-    var hours = Math.floor(mins / 60);
-    var remainingMins = mins % 60;
-    if (remainingMins === 0) {
-        return hours + '<%:h%>';
-    } else {
-        return hours + '<%:h%> ' + remainingMins + '<%:min%>';
-    }
-}
+        function buildProgressBar(label, used, limit) {
+            if (limit <= 0) return `<div class="time-progress-row"><span class="time-progress-label">${label}</span><span class="time-progress-text" style="color:#999;"><%:Not set%></span></div>`;
+            var pct = Math.min(Math.round((used / limit) * 100), 100);
+            var text = used >= limit ? `<span style="color:#d93025;"><%:Used up%></span> <span style="color:#999;">(<%:Total%>: ${limit} <%:min%>)</span>` : `${used} / ${limit} <%:min%>`;
+            return `<div class="time-progress-row"><span class="time-progress-label">${label}</span><div class="time-progress-bar"><div class="time-progress-fill" style="width:${pct}%"></div></div><span class="time-progress-text">${text}</span></div>`;
+        }
 
-function buildProgressBar(label, used, limit) {
-    if (limit <= 0) return `<div class="time-progress-row"><span class="time-progress-label">${label}</span><span class="time-progress-text" style="color:#999;"><%:Not set%></span></div>`;
-    var pct = Math.min(Math.round((used / limit) * 100), 100);
-    var text = used >= limit ? `<span style="color:#d93025;"><%:Used up%></span> <span style="color:#999;">(<%:Total%>: ${limit} <%:min%>)</span>` : `${used} / ${limit} <%:min%>`;
-    return `<div class="time-progress-row"><span class="time-progress-label">${label}</span><div class="time-progress-bar"><div class="time-progress-fill" style="width:${pct}%"></div></div><span class="time-progress-text">${text}</span></div>`;
-}
+		function init_data() {
+            getAppFilterTimeData().then(() => {
+                renderTimeData();
+            });
+		}
 
-function init_data() {
-    getAppFilterTimeData().then(() => {
-        renderTimeData();
-    });
-}
+		function getAppFilterTimeData() {
+			return new Promise((resolve, reject) => {
+				new XHR().get('<%=url('admin/network/get_app_filter_time')%>', null,
+					function (x, data) {
+						time_data = data.data;
+                        console.log(data.data);
+                        
+                        // Display current time
+                        if (data.data.current_time) {
+                            const currentTimeDisplay = document.getElementById('currentTimeDisplay');
+                            const currentTimeValue = document.getElementById('currentTimeValue');
+                            if (currentTimeDisplay && currentTimeValue) {
+                                currentTimeValue.textContent = data.data.current_time;
+                                currentTimeDisplay.style.display = 'block';
+                            }
+                        }
+                        
+						resolve(); 
+					}
+				);
+			});
+		}
 
-function getAppFilterTimeData() {
-    return new Promise((resolve, reject) => {
-        new XHR().get('<%=url('
-        admin / network / get_app_filter_time
-        ')%>', null,
-            function (x, data) {
-                time_data = data.data;
-                console.log(data.data);
 
-                // Display current time
-                if (data.data.current_time) {
-                    const currentTimeDisplay = document.getElementById('currentTimeDisplay');
-                    const currentTimeValue = document.getElementById('currentTimeValue');
-                    if (currentTimeDisplay && currentTimeValue) {
-                        currentTimeValue.textContent = data.data.current_time;
-                        currentTimeDisplay.style.display = 'block';
+		function submitHandle() {
+			const time_data = getTimeFormData();
+			const maxEntries = 64;
+			const mode = document.getElementById('timeMode').value;
+
+			if (mode === "0") {
+				if (!time_data.time_list || time_data.time_list.length === 0) {
+					const errorContainer = document.getElementById('errorContainer');
+					errorContainer.innerHTML = '<%:Please add at least one time period%>';
+					return;
+				}
+
+				if (time_data.time_list.length > maxEntries) {
+					const errorContainer = document.getElementById('errorContainer');
+					errorContainer.innerHTML = '<%:Time periods cannot exceed 64 entries%>';
+					return; 
+				}
+
+				// Check each time period has at least one weekday selected
+				for (let i = 0; i < time_data.time_list.length; i++) {
+					if (!time_data.time_list[i].weekday_list || time_data.time_list[i].weekday_list.length === 0) {
+						const errorContainer = document.getElementById('errorContainer');
+						errorContainer.innerHTML = '<%:Please select at least one weekday%>';
+						return;
+					}
+				}
+			} else if (mode === "1") {
+				// Dynamic time mode validation
+				if (!time_data.weekday_list || time_data.weekday_list.length === 0) {
+					const dynamicWeekdayErrorContainer = document.getElementById('dynamicWeekdayErrorContainer');
+					dynamicWeekdayErrorContainer.innerHTML = '<%:Please select at least one weekday%>';
+					dynamicWeekdayErrorContainer.style.display = 'block';
+					return;
+				}
+				if (!time_data.start_time || !time_data.end_time) {
+					const dynamicErrorContainer = document.getElementById('dynamicErrorContainer');
+					dynamicErrorContainer.innerHTML = '<%:Please set start and end time%>';
+					return;
+				}
+				
+				if (time_data.start_time >= time_data.end_time) {
+					const dynamicErrorContainer = document.getElementById('dynamicErrorContainer');
+					dynamicErrorContainer.innerHTML = '<%:End time must be greater than start time%>';
+					return;
+				}
+            } else if (mode === "2") {
+                // Daily time limit mode validation
+                if (!time_data.daily_time_list || time_data.daily_time_list.length !== 7) {
+                    console.error("daily_time_list is invalid");
+                    return;
+                }
+                
+                // Validate all enabled inputs before submission
+                const weekdayValues = [0, 1, 2, 3, 4, 5, 6];
+                let firstErrorInput = null;
+                
+                for (let i = 0; i < weekdayValues.length; i++) {
+                    const dayValue = weekdayValues[i];
+                    const enableCheckbox = document.getElementById(`dailyLimit_${dayValue}_enable`);
+                    
+                    if (enableCheckbox && enableCheckbox.checked) {
+                        // Validate AM input
+                        const amInput = document.getElementById(`dailyLimit_${dayValue}_am`);
+                        if (amInput) {
+                            validateDailyLimit(dayValue, 'am');
+                            const amError = document.getElementById(`dailyLimit_${dayValue}_am_error`);
+                            if (amError && amError.style.display !== 'none' && amError.textContent) {
+                                if (!firstErrorInput) {
+                                    firstErrorInput = amInput;
+                                }
+                            }
+                        }
+                        
+                        // Validate PM input
+                        const pmInput = document.getElementById(`dailyLimit_${dayValue}_pm`);
+                        if (pmInput) {
+                            validateDailyLimit(dayValue, 'pm');
+                            const pmError = document.getElementById(`dailyLimit_${dayValue}_pm_error`);
+                            if (pmError && pmError.style.display !== 'none' && pmError.textContent) {
+                                if (!firstErrorInput) {
+                                    firstErrorInput = pmInput;
+                                }
+                            }
+                        }
                     }
                 }
-
-                resolve();
+                
+                // If any error found, prevent submission
+                if (firstErrorInput) {
+                    firstErrorInput.focus();
+                    firstErrorInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return;
+                }
             }
-    )
-        ;
-    });
-}
 
 
-function submitHandle() {
-    const time_data = getTimeFormData();
-    const maxEntries = 64;
-    const mode = document.getElementById('timeMode').value;
 
-    if (mode === "0") {
-        if (!time_data.time_list || time_data.time_list.length === 0) {
-            const errorContainer = document.getElementById('errorContainer');
-            errorContainer.innerHTML = '<%:Please add at least one time period%>';
-            return;
+            var data_str=JSON.stringify(time_data);
+
+            var xhr = new XHR();
+            xhr.post('<%=url('admin/network/set_app_filter_time')%>', {
+                data:data_str
+            },
+				function (x, data) {
+					const modal = document.getElementById('modal');
+					modal.style.display = 'flex'; 
+					setTimeout(() => {
+						modal.style.display = 'none';
+						// Refresh the entire page to ensure all data is updated
+						location.reload();
+					}, 1000);
+				}
+			);
+
+
+		}
+
+		function openModal() {
+			document.getElementById('modal').style.display = 'block';
+		}
+
+		function closeModal() {
+			document.getElementById('modal').style.display = 'none';
+		}
+
+        function toggleClearMenu(e) {
+            e.stopPropagation();
+            var menu = document.getElementById('clearMenuContent');
+            if (menu) {
+                menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'block' : 'none';
+            }
         }
+        document.addEventListener('click', function() {
+            var menu = document.getElementById('clearMenuContent');
+            if (menu) menu.style.display = 'none';
+        });
 
-        if (time_data.time_list.length > maxEntries) {
-            const errorContainer = document.getElementById('errorContainer');
-            errorContainer.innerHTML = '<%:Time periods cannot exceed 64 entries%>';
-            return;
-        }
-
-        // Check each time period has at least one weekday selected
-        for (let i = 0; i < time_data.time_list.length; i++) {
-            if (!time_data.time_list[i].weekday_list || time_data.time_list[i].weekday_list.length === 0) {
-                const errorContainer = document.getElementById('errorContainer');
-                errorContainer.innerHTML = '<%:Please select at least one weekday%>';
+        function buildPerDevClearList(devTimeList) {
+            var container = document.getElementById('perDevClearList');
+            if (!container) return;
+            container.innerHTML = '';
+            if (!devTimeList || devTimeList.length === 0) {
+                container.innerHTML = '<div style="padding: 8px 16px; opacity: 0.5; font-size: 12px;"><%:No managed devices%></div>';
                 return;
             }
-        }
-    } else if (mode === "1") {
-        // Dynamic time mode validation
-        if (!time_data.weekday_list || time_data.weekday_list.length === 0) {
-            const dynamicWeekdayErrorContainer = document.getElementById('dynamicWeekdayErrorContainer');
-            dynamicWeekdayErrorContainer.innerHTML = '<%:Please select at least one weekday%>';
-            dynamicWeekdayErrorContainer.style.display = 'block';
-            return;
-        }
-        if (!time_data.start_time || !time_data.end_time) {
-            const dynamicErrorContainer = document.getElementById('dynamicErrorContainer');
-            dynamicErrorContainer.innerHTML = '<%:Please set start and end time%>';
-            return;
-        }
-
-        if (time_data.start_time >= time_data.end_time) {
-            const dynamicErrorContainer = document.getElementById('dynamicErrorContainer');
-            dynamicErrorContainer.innerHTML = '<%:End time must be greater than start time%>';
-            return;
-        }
-    } else if (mode === "2") {
-        // Daily time limit mode validation
-        if (!time_data.daily_time_list || time_data.daily_time_list.length !== 7) {
-            console.error("daily_time_list is invalid");
-            return;
-        }
-
-        // Validate all enabled inputs before submission
-        const weekdayValues = [0, 1, 2, 3, 4, 5, 6];
-        let firstErrorInput = null;
-
-        for (let i = 0; i < weekdayValues.length; i++) {
-            const dayValue = weekdayValues[i];
-            const enableCheckbox = document.getElementById(`dailyLimit_${dayValue}_enable`);
-
-            if (enableCheckbox && enableCheckbox.checked) {
-                // Validate AM input
-                const amInput = document.getElementById(`dailyLimit_${dayValue}_am`);
-                if (amInput) {
-                    validateDailyLimit(dayValue, 'am');
-                    const amError = document.getElementById(`dailyLimit_${dayValue}_am_error`);
-                    if (amError && amError.style.display !== 'none' && amError.textContent) {
-                        if (!firstErrorInput) {
-                            firstErrorInput = amInput;
-                        }
-                    }
+            for (var idx = 0; idx < devTimeList.length; idx++) {
+                var dev = devTimeList[idx];
+                var a = document.createElement('a');
+                a.href = 'javascript:void(0)';
+                a.setAttribute('data-mac', dev.mac);
+                a.style.cssText = 'display: block; padding: 8px 16px; color: #333; text-decoration: none; border-bottom: 1px solid #f0f0f0; font-size: 13px;';
+                var totalMin = (dev.am_used || 0) + (dev.pm_used || 0);  // 单位已是分钟
+                var devName = (dev.name && dev.name !== '') ? dev.name : dev.mac;
+                a.textContent = '清空: ' + devName + ' (' + totalMin + '分钟)';
+                if (dev.blocked == 1) {
+                    a.style.color = '#d9534f';
+                    a.textContent = '⛔ ' + a.textContent;
                 }
+                a.onclick = (function(mac) {
+                    return function(e) {
+                        e.stopPropagation();
+                        clearActiveTime(mac);
+                    };
+                })(dev.mac);
+                container.appendChild(a);
+            }
+        }
 
-                // Validate PM input
-                const pmInput = document.getElementById(`dailyLimit_${dayValue}_pm`);
-                if (pmInput) {
-                    validateDailyLimit(dayValue, 'pm');
-                    const pmError = document.getElementById(`dailyLimit_${dayValue}_pm_error`);
-                    if (pmError && pmError.style.display !== 'none' && pmError.textContent) {
-                        if (!firstErrorInput) {
-                            firstErrorInput = pmInput;
-                        }
-                    }
+        function clearActiveTime(mac) {
+            var menu = document.getElementById('clearMenuContent');
+            if (menu) menu.style.display = 'none';
+
+            // 防重复提交 + 加载态
+            var clearBtn = document.querySelector('.clear-time-btn');
+            if (clearBtn) {
+                if (clearBtn._clearing) return;  // 防止重复点击
+                clearBtn._clearing = true;
+                clearBtn.textContent = '<%:Clearing...%>';
+            }
+
+            var payload = { action: 'clear_active_time' };
+            if (mac) {
+                payload.mac = mac;
+                if (!confirm('<%:Clear this device\'s active time?%>')) {
+                    if (clearBtn) { clearBtn._clearing = false; clearBtn.textContent = 'Clear ▾'; }
+                    return;
                 }
-            }
-        }
-
-        // If any error found, prevent submission
-        if (firstErrorInput) {
-            firstErrorInput.focus();
-            firstErrorInput.scrollIntoView({behavior: 'smooth', block: 'center'});
-            return;
-        }
-    }
-
-
-    var data_str = JSON.stringify(time_data);
-
-    var xhr = new XHR();
-    xhr.post('<%=url('
-    admin / network / set_app_filter_time
-    ')%>', {
-        data: data_str
-    },
-        function (x, data) {
-            const modal = document.getElementById('modal');
-            modal.style.display = 'flex';
-            setTimeout(() => {
-                modal.style.display = 'none';
-                // Refresh the entire page to ensure all data is updated
-                location.reload();
-            }, 1000);
-        }
-)
-    ;
-
-
-}
-
-function openModal() {
-    document.getElementById('modal').style.display = 'block';
-}
-
-function closeModal() {
-    document.getElementById('modal').style.display = 'none';
-}
-
-function toggleClearMenu(e) {
-    e.stopPropagation();
-    var menu = document.getElementById('clearMenuContent');
-    if (menu) {
-        menu.style.display = (menu.style.display === 'none' || menu.style.display === '') ? 'block' : 'none';
-    }
-}
-
-document.addEventListener('click', function () {
-    var menu = document.getElementById('clearMenuContent');
-    if (menu) menu.style.display = 'none';
-});
-
-function buildPerDevClearList(devTimeList) {
-    var container = document.getElementById('perDevClearList');
-    if (!container) return;
-    container.innerHTML = '';
-    if (!devTimeList || devTimeList.length === 0) {
-        container.innerHTML = '<div style="padding: 8px 16px; opacity: 0.5; font-size: 12px;"><%:No managed devices%></div>';
-        return;
-    }
-    for (var idx = 0; idx < devTimeList.length; idx++) {
-        var dev = devTimeList[idx];
-        var a = document.createElement('a');
-        a.href = 'javascript:void(0)';
-        a.setAttribute('data-mac', dev.mac);
-        a.style.cssText = 'display: block; padding: 8px 16px; color: #333; text-decoration: none; border-bottom: 1px solid #f0f0f0; font-size: 13px;';
-        var totalMin = (dev.am_used || 0) + (dev.pm_used || 0);  // 单位已是分钟
-        var devName = (dev.name && dev.name !== '') ? dev.name : dev.mac;
-        a.textContent = '清空: ' + devName + ' (' + totalMin + '分钟)';
-        if (dev.blocked == 1) {
-            a.style.color = '#d9534f';
-            a.textContent = '⛔ ' + a.textContent;
-        }
-        a.onclick = (function (mac) {
-            return function (e) {
-                e.stopPropagation();
-                clearActiveTime(mac);
-            };
-        })(dev.mac);
-        container.appendChild(a);
-    }
-}
-
-function clearActiveTime(mac) {
-    var menu = document.getElementById('clearMenuContent');
-    if (menu) menu.style.display = 'none';
-
-    // 防重复提交 + 加载态
-    var clearBtn = document.querySelector('.clear-time-btn');
-    if (clearBtn) {
-        if (clearBtn._clearing) return;  // 防止重复点击
-        clearBtn._clearing = true;
-        clearBtn.textContent = '<%:Clearing...%>';
-    }
-
-    var payload = {action: 'clear_active_time'};
-    if (mac) {
-        payload.mac = mac;
-        if (!confirm('<%:Clear this device\'s active time?%>')) {
-            if (clearBtn) {
-                clearBtn._clearing = false;
-                clearBtn.textContent = 'Clear ▾';
-            }
-            return;
-        }
-    } else {
-        if (!confirm('<%:Are you sure you want to clear active time of all users?%>')) {
-            if (clearBtn) {
-                clearBtn._clearing = false;
-                clearBtn.textContent = 'Clear ▾';
-            }
-            return;
-        }
-    }
-    new XHR().post('<%=url('
-    admin / network / oaf_split_clear_dev
-    ')%>', payload,
-        function (x, data) {
-            if (clearBtn) {
-                clearBtn._clearing = false;
-                clearBtn.textContent = 'Clear ▾';
-            }
-            if (data && data.code === 0) {
-                const modal = document.getElementById('modal');
-                modal.style.display = 'flex';
-                setTimeout(() => {
-                    modal.style.display = 'none';
-                }, 1000);
-                // Refresh time data to update display
-                getAppFilterTimeData().then(() => {
-                    renderTimeData();
-                });
             } else {
-                alert(data ? (data.message || '<%:Failed to clear active time%>') : '<%:Failed to clear active time%>');
+                if (!confirm('<%:Are you sure you want to clear active time of all users?%>')) {
+                    if (clearBtn) { clearBtn._clearing = false; clearBtn.textContent = 'Clear ▾'; }
+                    return;
+                }
             }
-        }
-)
-    ;
-}
-
-function onSplitTimeChange() {
-    var toggle = document.getElementById('splitTimeToggle');
-    if (!toggle) return;
-    if (toggle.checked) {
-        if (!confirm('<%:Switching to split time mode will clear all existing time data. Continue?%>')) {
-            toggle.checked = false;
-            return;
-        }
-        // 切换时清空所有时长 + 自动保存
-        saveSplitTimeConfig();
-    } else {
-        // 切回共享模式也清空 + 保存
-        saveSplitTimeConfig();
-    }
-}
-
-function saveSplitTimeConfig() {
-    // 先清空所有设备时长
-    var payload = {action: 'clear_active_time'};
-    new XHR().post('<%=url('
-    admin / network / oaf_split_clear_dev
-    ')%>', payload,
-        function (x, data) {
-            // 不论清空是否成功，立即保存 UCI 配置
-            var timeData = getTimeFormData();
-            var dataStr = JSON.stringify(timeData);
-            new XHR().post('<%=url('
-            admin / network / set_app_filter_time
-            ')%>',
-                {data: dataStr},
-                function (x2, resp) {
+            new XHR().post('<%=url('admin/network/oaf_split_clear_dev')%>', payload,
+            function (x, data) {
+                if (clearBtn) { clearBtn._clearing = false; clearBtn.textContent = 'Clear ▾'; }
+                if (data && data.code === 0) {
                     const modal = document.getElementById('modal');
-                    modal.style.display = 'flex';
-                    setTimeout(function () {
+                    modal.style.display = 'flex'; 
+                    setTimeout(() => {
                         modal.style.display = 'none';
-                        location.reload();
                     }, 1000);
+                    // Refresh time data to update display
+                    getAppFilterTimeData().then(() => {
+                        renderTimeData();
+                    });
+                } else {
+                    alert(data ? (data.message || '<%:Failed to clear active time%>') : '<%:Failed to clear active time%>');
                 }
-        )
-            ;
+            });
         }
-)
-    ;
-}
 
-function getAppFilterBaseData() {
-    new XHR().get('<%=url('
-    admin / network / get_app_filter_base
-    ')%>', null,
-        function (x, data) {
-            if (data.data.enable == 1) {
-                document.getElementById('filterSwitch').checked = true;
+        function onSplitTimeChange() {
+            var toggle = document.getElementById('splitTimeToggle');
+            if (!toggle) return;
+            if (toggle.checked) {
+                if (!confirm('<%:Switching to split time mode will clear all existing time data. Continue?%>')) {
+                    toggle.checked = false;
+                    return;
+                }
+                // 切换时清空所有时长 + 自动保存
+                saveSplitTimeConfig();
             } else {
-                document.getElementById('filterSwitch').checked = false;
+                // 切回共享模式也清空 + 保存
+                saveSplitTimeConfig();
             }
-            document.getElementById('workMode').value = data.data.work_mode;
-
         }
-)
-    ;
-}
 
-function addTimeRow() {
-    const tbody = document.getElementById('timeTableBody');
-    const row = document.createElement('tr');
-    const weekdayCell = document.createElement('td');
-    weekdayCell.innerHTML = `
+        function saveSplitTimeConfig() {
+            // 先清空所有设备时长
+            var payload = { action: 'clear_active_time' };
+            new XHR().post('<%=url('admin/network/oaf_split_clear_dev')%>', payload,
+            function(x, data) {
+                // 不论清空是否成功，立即保存 UCI 配置
+                var timeData = getTimeFormData();
+                var dataStr = JSON.stringify(timeData);
+                new XHR().post('<%=url('admin/network/set_app_filter_time')%>',
+                    { data: dataStr },
+                    function(x2, resp) {
+                        const modal = document.getElementById('modal');
+                        modal.style.display = 'flex';
+                        setTimeout(function() {
+                            modal.style.display = 'none';
+                            location.reload();
+                        }, 1000);
+                    }
+                );
+            });
+        }
+
+        function getAppFilterBaseData() {
+            new XHR().get('<%=url('admin/network/get_app_filter_base')%>', null,
+                function (x, data) {
+                    if (data.data.enable == 1) {
+                        document.getElementById('filterSwitch').checked = true;
+                    } else {
+                        document.getElementById('filterSwitch').checked = false;
+                    }
+                    document.getElementById('workMode').value = data.data.work_mode;
+       
+                }
+            );
+        }
+
+        function addTimeRow() {
+            const tbody = document.getElementById('timeTableBody');
+            const row = document.createElement('tr');
+            const weekdayCell = document.createElement('td');
+            weekdayCell.innerHTML = `
                 <div class="weekday-selector" style="margin: 0;">
                     <div class="weekday-item" style="display: inline-block; margin-right: 8px;"><input type="checkbox" class="weekday-checkbox" value="1"> <%:Mon%></div>
                     <div class="weekday-item" style="display: inline-block; margin-right: 8px;"><input type="checkbox" class="weekday-checkbox" value="2"> <%:Tue%></div>
@@ -603,182 +574,182 @@ function addTimeRow() {
                     <div class="weekday-item" style="display: inline-block; margin-right: 8px;"><input type="checkbox" class="weekday-checkbox" value="0"> <%:Sun%></div>
                 </div>
             `;
-    row.appendChild(weekdayCell);
-    row.innerHTML += `
+            row.appendChild(weekdayCell);
+            row.innerHTML += `
                 <td><input type="time" class="start-time" required></td>
                 <td><input type="time" class="end-time" required></td>
                 <td><button type="button" class="delete-time-btn" onclick="deleteTimeRow(this)"><%:Delete%></button></td>
             `;
-    tbody.appendChild(row);
+            tbody.appendChild(row);
 
-    setTimeout(() => {
-        const startTimeInput = row.querySelector('.start-time');
-        const endTimeInput = row.querySelector('.end-time');
-        startTimeInput.value = "00:00";
-        endTimeInput.value = "23:59";
-        row.querySelectorAll('.weekday-checkbox').forEach(cb => cb.checked = true);
-    }, 0);
+            setTimeout(() => {
+                const startTimeInput = row.querySelector('.start-time');
+                const endTimeInput = row.querySelector('.end-time');
+                startTimeInput.value = "00:00";
+                endTimeInput.value = "23:59";
+                row.querySelectorAll('.weekday-checkbox').forEach(cb => cb.checked = true);
+            }, 0);
 
-    addTimeValidation();
-}
+            addTimeValidation();
+        }
 
-function deleteTimeRow(btn) {
-    const row = btn.closest('tr');
-    row.remove();
-}
+        function deleteTimeRow(btn) {
+            const row = btn.closest('tr');
+            row.remove();
+        }
 
-function toggleModeContent() {
-    const mode = document.getElementById('timeMode').value;
-    const staticTimeContent = document.getElementById('staticTimeContent');
-    const dynamicTimeContent = document.getElementById('dynamicTimeContent');
-    const dailyTimeContent = document.getElementById('dailyTimeContent');
+        function toggleModeContent() {
+            const mode = document.getElementById('timeMode').value;
+            const staticTimeContent = document.getElementById('staticTimeContent');
+            const dynamicTimeContent = document.getElementById('dynamicTimeContent');
+            const dailyTimeContent = document.getElementById('dailyTimeContent');
 
-    if (mode === "1") {
-        staticTimeContent.style.display = 'none';
-        dynamicTimeContent.style.display = 'block';
-        dailyTimeContent.style.display = 'none';
-    } else if (mode === "2") {
-        staticTimeContent.style.display = 'none';
-        dynamicTimeContent.style.display = 'none';
-        dailyTimeContent.style.display = 'block';
-    } else {
-        staticTimeContent.style.display = 'block';
-        dynamicTimeContent.style.display = 'none';
-        dailyTimeContent.style.display = 'none';
-    }
-}
+            if (mode === "1") {
+                staticTimeContent.style.display = 'none';
+                dynamicTimeContent.style.display = 'block';
+                dailyTimeContent.style.display = 'none';
+            } else if (mode === "2") {
+                staticTimeContent.style.display = 'none';
+                dynamicTimeContent.style.display = 'none';
+                dailyTimeContent.style.display = 'block';
+            } else {
+                staticTimeContent.style.display = 'block';
+                dynamicTimeContent.style.display = 'none';
+                dailyTimeContent.style.display = 'none';
+            }
+        }
 
-function getTimeFormData() {
-    const mode = document.getElementById('timeMode').value;
+        function getTimeFormData() {
+            const mode = document.getElementById('timeMode').value;
+            
+            let timeData = {
+                mode: parseInt(mode),
+                weekday_list: [] // Keep for backward compatibility, but not used in mode 0
+            };
 
-    let timeData = {
-        mode: parseInt(mode),
-        weekday_list: [] // Keep for backward compatibility, but not used in mode 0
-    };
-
-    if (mode === "0") {
-        const time_list = Array.from(document.getElementById('timeTableBody').rows)
-            .map(row => {
-                const weekdays = Array.from(row.querySelectorAll('.weekday-checkbox:checked'))
+            if (mode === "0") {
+                const time_list = Array.from(document.getElementById('timeTableBody').rows)
+                    .map(row => {
+                        const weekdays = Array.from(row.querySelectorAll('.weekday-checkbox:checked'))
+                            .map(cb => parseInt(cb.value));
+                        return {
+                            start: row.querySelector('.start-time').value,
+                            end: row.querySelector('.end-time').value,
+                            weekday_list: weekdays
+                        };
+                    });
+                timeData.time_list = time_list;
+            } else if (mode === "1") { 
+                // Dynamic mode: still use global weekday_list
+                const weekdays = Array.from(document.querySelectorAll('.advanced-content input[name="weekday"]:checked'))
                     .map(cb => parseInt(cb.value));
-                return {
-                    start: row.querySelector('.start-time').value,
-                    end: row.querySelector('.end-time').value,
-                    weekday_list: weekdays
-                };
-            });
-        timeData.time_list = time_list;
-    } else if (mode === "1") {
-        // Dynamic mode: still use global weekday_list
-        const weekdays = Array.from(document.querySelectorAll('.advanced-content input[name="weekday"]:checked'))
-            .map(cb => parseInt(cb.value));
-        timeData.weekday_list = weekdays;
-        timeData.start_time = document.getElementById('startTime').value;
-        timeData.end_time = document.getElementById('endTime').value;
-        timeData.allow_time = parseInt(document.getElementById('allowTime').value);
-        timeData.deny_time = parseInt(document.getElementById('denyTime').value);
-    } else if (mode === "2") {
-        // Daily time limit mode: weekday duration settings
-        // Array order: 0(Sun), 1(Mon), 2(Tue), 3(Wed), 4(Thu), 5(Fri), 6(Sat)
-        const dailyTimeList = [];
-        const weekdayValues = [0, 1, 2, 3, 4, 5, 6]; // Sunday first in array
+                timeData.weekday_list = weekdays;
+                timeData.start_time = document.getElementById('startTime').value;
+                timeData.end_time = document.getElementById('endTime').value;
+                timeData.allow_time = parseInt(document.getElementById('allowTime').value);
+                timeData.deny_time = parseInt(document.getElementById('denyTime').value);
+            } else if (mode === "2") {
+                // Daily time limit mode: weekday duration settings
+                // Array order: 0(Sun), 1(Mon), 2(Tue), 3(Wed), 4(Thu), 5(Fri), 6(Sat)
+                const dailyTimeList = [];
+                const weekdayValues = [0, 1, 2, 3, 4, 5, 6]; // Sunday first in array
+                
+                weekdayValues.forEach((dayValue) => {
+                    const enableCheckbox = document.getElementById(`dailyLimit_${dayValue}_enable`);
+                    const amInput = document.getElementById(`dailyLimit_${dayValue}_am`);
+                    const pmInput = document.getElementById(`dailyLimit_${dayValue}_pm`);
+                    if (enableCheckbox && amInput && pmInput) {
+                        dailyTimeList.push({
+                            enable: enableCheckbox.checked ? 1 : 0,
+                            am_time: parseInt(amInput.value) || 0,
+                            pm_time: parseInt(pmInput.value) || 0
+                        });
+                    }
+                });
+                timeData.daily_time_list = dailyTimeList;
+                // 收集独立设备分时模式开关
+                var splitToggle = document.getElementById('splitTimeToggle');
+                timeData.split_time = (splitToggle && splitToggle.checked) ? 1 : 0;
+            }
 
-        weekdayValues.forEach((dayValue) => {
-            const enableCheckbox = document.getElementById(`dailyLimit_${dayValue}_enable`);
-            const amInput = document.getElementById(`dailyLimit_${dayValue}_am`);
-            const pmInput = document.getElementById(`dailyLimit_${dayValue}_pm`);
-            if (enableCheckbox && amInput && pmInput) {
-                dailyTimeList.push({
-                    enable: enableCheckbox.checked ? 1 : 0,
-                    am_time: parseInt(amInput.value) || 0,
-                    pm_time: parseInt(pmInput.value) || 0
+            return timeData;
+        }
+
+        function toggleAdvanced(element) {
+            element.classList.toggle('expanded');
+            element.nextElementSibling.classList.toggle('expanded');
+        }
+
+        function clearDynamicWeekdayError() {
+            const dynamicWeekdayErrorContainer = document.getElementById('dynamicWeekdayErrorContainer');
+            if (dynamicWeekdayErrorContainer) {
+                dynamicWeekdayErrorContainer.style.display = 'none';
+                dynamicWeekdayErrorContainer.innerHTML = '';
+            }
+        }
+
+        function addTimeValidation() {
+            document.querySelectorAll('.start-time, .end-time').forEach(input => {
+                input.addEventListener('blur', validateTime);
+            });
+        }
+
+        function validateTime(event) {
+            const row = event.target.closest('tr');
+            const startTimeInput = row.querySelector('.start-time');
+            const endTimeInput = row.querySelector('.end-time');
+
+            const startTime = startTimeInput.value;
+            const endTime = endTimeInput.value;
+
+            const errorContainer = document.getElementById('errorContainer');
+            errorContainer.innerHTML = '';
+
+            let errorMessage = '';
+
+            if (!isValidTimeFormat(startTime) || !isValidTimeFormat(endTime)) {
+                errorMessage = '<%:Invalid time format, please enter a valid time format (HH:MM)%>';
+            } else if (startTime >= endTime) {
+                errorMessage = '<%:End time must be greater than start time%>';
+            }
+
+            if (errorMessage) {
+                const errorElement = document.createElement('div');
+                errorElement.className = 'error-message';
+                errorElement.style.color = 'red';
+                errorElement.style.fontSize = '12px';
+                errorElement.textContent = errorMessage;
+                errorContainer.appendChild(errorElement);
+            }
+        }
+
+        function isValidTimeFormat(time) {
+            const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
+            return timePattern.test(time);
+        }
+
+        function renderTimeData() {
+            const timeMode = document.getElementById('timeMode');
+            timeMode.value = time_data.mode;
+
+            // Clear dynamic mode weekday checkboxes
+            document.querySelectorAll('.advanced-content input[name="weekday"]').forEach(cb => cb.checked = false);
+
+            // Set dynamic mode weekday checkboxes if weekday_list exists and is an array
+            if (time_data.weekday_list && Array.isArray(time_data.weekday_list)) {
+                time_data.weekday_list.forEach(day => {
+                    const dynamicCheckbox = document.querySelector(`.advanced-content input[name="weekday"][value="${day}"]`);
+                    if (dynamicCheckbox) dynamicCheckbox.checked = true;
                 });
             }
-        });
-        timeData.daily_time_list = dailyTimeList;
-        // 收集独立设备分时模式开关
-        var splitToggle = document.getElementById('splitTimeToggle');
-        timeData.split_time = (splitToggle && splitToggle.checked) ? 1 : 0;
-    }
 
-    return timeData;
-}
-
-function toggleAdvanced(element) {
-    element.classList.toggle('expanded');
-    element.nextElementSibling.classList.toggle('expanded');
-}
-
-function clearDynamicWeekdayError() {
-    const dynamicWeekdayErrorContainer = document.getElementById('dynamicWeekdayErrorContainer');
-    if (dynamicWeekdayErrorContainer) {
-        dynamicWeekdayErrorContainer.style.display = 'none';
-        dynamicWeekdayErrorContainer.innerHTML = '';
-    }
-}
-
-function addTimeValidation() {
-    document.querySelectorAll('.start-time, .end-time').forEach(input => {
-        input.addEventListener('blur', validateTime);
-    });
-}
-
-function validateTime(event) {
-    const row = event.target.closest('tr');
-    const startTimeInput = row.querySelector('.start-time');
-    const endTimeInput = row.querySelector('.end-time');
-
-    const startTime = startTimeInput.value;
-    const endTime = endTimeInput.value;
-
-    const errorContainer = document.getElementById('errorContainer');
-    errorContainer.innerHTML = '';
-
-    let errorMessage = '';
-
-    if (!isValidTimeFormat(startTime) || !isValidTimeFormat(endTime)) {
-        errorMessage = '<%:Invalid time format, please enter a valid time format (HH:MM)%>';
-    } else if (startTime >= endTime) {
-        errorMessage = '<%:End time must be greater than start time%>';
-    }
-
-    if (errorMessage) {
-        const errorElement = document.createElement('div');
-        errorElement.className = 'error-message';
-        errorElement.style.color = 'red';
-        errorElement.style.fontSize = '12px';
-        errorElement.textContent = errorMessage;
-        errorContainer.appendChild(errorElement);
-    }
-}
-
-function isValidTimeFormat(time) {
-    const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
-    return timePattern.test(time);
-}
-
-function renderTimeData() {
-    const timeMode = document.getElementById('timeMode');
-    timeMode.value = time_data.mode;
-
-    // Clear dynamic mode weekday checkboxes
-    document.querySelectorAll('.advanced-content input[name="weekday"]').forEach(cb => cb.checked = false);
-
-    // Set dynamic mode weekday checkboxes if weekday_list exists and is an array
-    if (time_data.weekday_list && Array.isArray(time_data.weekday_list)) {
-        time_data.weekday_list.forEach(day => {
-            const dynamicCheckbox = document.querySelector(`.advanced-content input[name="weekday"][value="${day}"]`);
-            if (dynamicCheckbox) dynamicCheckbox.checked = true;
-        });
-    }
-
-    const tbody = document.getElementById('timeTableBody');
-    tbody.innerHTML = '';
-    if (time_data.time_list) {
-        time_data.time_list.forEach(timeRange => {
-            const row = document.createElement('tr');
-            const weekdayCell = document.createElement('td');
-            weekdayCell.innerHTML = `
+            const tbody = document.getElementById('timeTableBody');
+            tbody.innerHTML = '';
+            if (time_data.time_list) {
+                time_data.time_list.forEach(timeRange => {
+                    const row = document.createElement('tr');
+                    const weekdayCell = document.createElement('td');
+                    weekdayCell.innerHTML = `
                         <div class="weekday-selector" style="margin: 0;">
                             <div class="weekday-item" style="display: inline-block; margin-right: 8px;"><input type="checkbox" class="weekday-checkbox" value="1"> <%:Mon%></div>
                             <div class="weekday-item" style="display: inline-block; margin-right: 8px;"><input type="checkbox" class="weekday-checkbox" value="2"> <%:Tue%></div>
@@ -789,240 +760,240 @@ function renderTimeData() {
                             <div class="weekday-item" style="display: inline-block; margin-right: 8px;"><input type="checkbox" class="weekday-checkbox" value="0"> <%:Sun%></div>
                         </div>
                     `;
-            row.appendChild(weekdayCell);
-            row.innerHTML += `
+                    row.appendChild(weekdayCell);
+                    row.innerHTML += `
                         <td><input type="time" class="start-time" value="${timeRange.start}" required></td>
                         <td><input type="time" class="end-time" value="${timeRange.end}" required></td>
                         <td><button type="button" class="delete-time-btn" onclick="deleteTimeRow(this)"><%:Delete%></button></td>
                     `;
-            tbody.appendChild(row);
-
-            // Set weekday checkboxes for this time period
-            if (timeRange.weekday_list && timeRange.weekday_list.length > 0) {
-                timeRange.weekday_list.forEach(day => {
-                    const checkbox = row.querySelector(`.weekday-checkbox[value="${day}"]`);
-                    if (checkbox) checkbox.checked = true;
-                });
-            } else {
-                // If no weekday_list, use global weekday_list as fallback (for backward compatibility)
-                if (time_data.weekday_list && Array.isArray(time_data.weekday_list) && time_data.weekday_list.length > 0) {
-                    time_data.weekday_list.forEach(day => {
-                        const checkbox = row.querySelector(`.weekday-checkbox[value="${day}"]`);
-                        if (checkbox) checkbox.checked = true;
-                    });
-                } else {
-                    // Default: select all weekdays
-                    row.querySelectorAll('.weekday-checkbox').forEach(cb => cb.checked = true);
-                }
-            }
-        });
-    }
-
-    // Render dynamic mode data
-    if (time_data.start_time) {
-        document.getElementById('startTime').value = time_data.start_time;
-    }
-    if (time_data.end_time) {
-        document.getElementById('endTime').value = time_data.end_time;
-    }
-    if (time_data.allow_time) {
-        document.getElementById('allowTime').value = time_data.allow_time;
-    }
-    if (time_data.deny_time) {
-        document.getElementById('denyTime').value = time_data.deny_time;
-    }
-
-    // Render daily time limit mode data
-    // Array order: 0(Sun), 1(Mon), 2(Tue), 3(Wed), 4(Thu), 5(Fri), 6(Sat)
-    if (time_data.daily_time_list && Array.isArray(time_data.daily_time_list)) {
-        const weekdayValues = [0, 1, 2, 3, 4, 5, 6]; // Sunday first in array
-        weekdayValues.forEach((dayValue, index) => {
-            if (time_data.daily_time_list[index]) {
-                const enableCheckbox = document.getElementById(`dailyLimit_${dayValue}_enable`);
-                const amInput = document.getElementById(`dailyLimit_${dayValue}_am`);
-                const pmInput = document.getElementById(`dailyLimit_${dayValue}_pm`);
-
-                if (enableCheckbox) {
-                    enableCheckbox.checked = (time_data.daily_time_list[index].enable == 1);
-                    toggleDailyLimitInputs(dayValue);
-                }
-                if (amInput) {
-                    amInput.value = time_data.daily_time_list[index].am_time || 0;
-                }
-                if (pmInput) {
-                    pmInput.value = time_data.daily_time_list[index].pm_time || 0;
-                }
-            }
-        });
-
-        // 显示当前上网时长信息
-        if (time_data.current_weekday !== undefined) {
-            const currentWeekday = time_data.current_weekday;
-            const weekdayNames = ['<%:Sunday%>', '<%:Monday%>', '<%:Tuesday%>', '<%:Wednesday%>', '<%:Thursday%>', '<%:Friday%>', '<%:Saturday%>'];
-            const currentWeekdayName = weekdayNames[currentWeekday] || '';
-
-            const amUsed = time_data.current_am_used_time || 0;
-            const pmUsed = time_data.current_pm_used_time || 0;
-            const amLimit = time_data.current_am_limit || 0;
-            const pmLimit = time_data.current_pm_limit || 0;
-            const dayEnabled = time_data.current_day_enabled || 0;
-
-            const infoDiv = document.getElementById('currentTimeUsageInfo');
-            const contentDiv = document.getElementById('currentTimeUsageContent');
-
-            if (infoDiv && contentDiv) {
-                if (dayEnabled) {
-                    infoDiv.style.display = 'block';
-                    let html = `<div><strong><%:Today is%>: ${currentWeekdayName}</strong></div>`;
-
-                    if (time_data.split_time == 1 && time_data.dev_time_list && time_data.dev_time_list.length > 0) {
-                        // Split mode: 各设备独立进度条
-                        time_data.dev_time_list.forEach(function (devItem) {
-                            var devName = (devItem.name && devItem.name !== '') ? devItem.name : devItem.mac;
-                            var dAm = devItem.am_used || 0;
-                            var dPm = devItem.pm_used || 0;
-                            var blockIcon = devItem.blocked == 1 ? ' ⛔' : '';
-                            html += `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; border-left: 3px solid ${devItem.blocked == 1 ? '#d93025' : '#1a73e8'};">`;
-                            html += `<div style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">${devName}${blockIcon}</div>`;
-                            html += buildProgressBar('<%:AM%>', dAm, amLimit);
-                            html += buildProgressBar('<%:PM%>', dPm, pmLimit);
-                            html += `</div>`;
+                    tbody.appendChild(row);
+                    
+                    // Set weekday checkboxes for this time period
+                    if (timeRange.weekday_list && timeRange.weekday_list.length > 0) {
+                        timeRange.weekday_list.forEach(day => {
+                            const checkbox = row.querySelector(`.weekday-checkbox[value="${day}"]`);
+                            if (checkbox) checkbox.checked = true;
                         });
                     } else {
-                        // 共享模式：汇总进度条
-                        html += buildProgressBar('<%:AM%>', amUsed, amLimit);
-                        html += buildProgressBar('<%:PM%>', pmUsed, pmLimit);
+                        // If no weekday_list, use global weekday_list as fallback (for backward compatibility)
+                        if (time_data.weekday_list && Array.isArray(time_data.weekday_list) && time_data.weekday_list.length > 0) {
+                            time_data.weekday_list.forEach(day => {
+                                const checkbox = row.querySelector(`.weekday-checkbox[value="${day}"]`);
+                                if (checkbox) checkbox.checked = true;
+                            });
+                        } else {
+                            // Default: select all weekdays
+                            row.querySelectorAll('.weekday-checkbox').forEach(cb => cb.checked = true);
+                        }
                     }
-                    contentDiv.innerHTML = html;
-                } else {
-                    infoDiv.style.display = 'block';
-                    contentDiv.innerHTML = `<div><strong><%:Today is%>: ${currentWeekdayName}</strong></div><div style="margin-top: 8px; opacity: 0.6;"><%:Time limit not enabled for today%></div>`;
+                });
+            }
+
+            // Render dynamic mode data
+            if (time_data.start_time) {
+                document.getElementById('startTime').value = time_data.start_time;
+            }
+            if (time_data.end_time) {
+                document.getElementById('endTime').value = time_data.end_time;
+            }
+            if (time_data.allow_time) {
+                document.getElementById('allowTime').value = time_data.allow_time;
+            }
+            if (time_data.deny_time) {
+                document.getElementById('denyTime').value = time_data.deny_time;
+            }
+
+            // Render daily time limit mode data
+            // Array order: 0(Sun), 1(Mon), 2(Tue), 3(Wed), 4(Thu), 5(Fri), 6(Sat)
+            if (time_data.daily_time_list && Array.isArray(time_data.daily_time_list)) {
+                const weekdayValues = [0, 1, 2, 3, 4, 5, 6]; // Sunday first in array
+                weekdayValues.forEach((dayValue, index) => {
+                    if (time_data.daily_time_list[index]) {
+                        const enableCheckbox = document.getElementById(`dailyLimit_${dayValue}_enable`);
+                        const amInput = document.getElementById(`dailyLimit_${dayValue}_am`);
+                        const pmInput = document.getElementById(`dailyLimit_${dayValue}_pm`);
+                        
+                        if (enableCheckbox) {
+                            enableCheckbox.checked = (time_data.daily_time_list[index].enable == 1);
+                            toggleDailyLimitInputs(dayValue);
+                        }
+                        if (amInput) {
+                            amInput.value = time_data.daily_time_list[index].am_time || 0;
+                        }
+                        if (pmInput) {
+                            pmInput.value = time_data.daily_time_list[index].pm_time || 0;
+                        }
+                    }
+                });
+                
+                // 显示当前上网时长信息
+                if (time_data.current_weekday !== undefined) {
+                    const currentWeekday = time_data.current_weekday;
+                    const weekdayNames = ['<%:Sunday%>', '<%:Monday%>', '<%:Tuesday%>', '<%:Wednesday%>', '<%:Thursday%>', '<%:Friday%>', '<%:Saturday%>'];
+                    const currentWeekdayName = weekdayNames[currentWeekday] || '';
+                    
+                    const amUsed = time_data.current_am_used_time || 0;
+                    const pmUsed = time_data.current_pm_used_time || 0;
+                    const amLimit = time_data.current_am_limit || 0;
+                    const pmLimit = time_data.current_pm_limit || 0;
+                    const dayEnabled = time_data.current_day_enabled || 0;
+                    
+                    const infoDiv = document.getElementById('currentTimeUsageInfo');
+                    const contentDiv = document.getElementById('currentTimeUsageContent');
+                    
+                    if (infoDiv && contentDiv) {
+                        if (dayEnabled) {
+                            infoDiv.style.display = 'block';
+                            let html = `<div><strong><%:Today is%>: ${currentWeekdayName}</strong></div>`;
+                            
+                            if (time_data.split_time == 1 && time_data.dev_time_list && time_data.dev_time_list.length > 0) {
+                                // Split mode: 各设备独立进度条
+                                time_data.dev_time_list.forEach(function(devItem) {
+                                    var devName = (devItem.name && devItem.name !== '') ? devItem.name : devItem.mac;
+                                    var dAm = devItem.am_used || 0;
+                                    var dPm = devItem.pm_used || 0;
+                                    var blockIcon = devItem.blocked == 1 ? ' ⛔' : '';
+                                    html += `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; border-left: 3px solid ${devItem.blocked == 1 ? '#d93025' : '#1a73e8'};">`;
+                                    html += `<div style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">${devName}${blockIcon}</div>`;
+                                    html += buildProgressBar('<%:AM%>', dAm, amLimit);
+                                    html += buildProgressBar('<%:PM%>', dPm, pmLimit);
+                                    html += `</div>`;
+                                });
+                            } else {
+                                // 共享模式：汇总进度条
+                                html += buildProgressBar('<%:AM%>', amUsed, amLimit);
+                                html += buildProgressBar('<%:PM%>', pmUsed, pmLimit);
+                            }
+                            contentDiv.innerHTML = html;
+                        } else {
+                            infoDiv.style.display = 'block';
+                            contentDiv.innerHTML = `<div><strong><%:Today is%>: ${currentWeekdayName}</strong></div><div style="margin-top: 8px; opacity: 0.6;"><%:Time limit not enabled for today%></div>`;
+                        }
+                    }
+                    
+                    // 高亮当前星期几的行
+                    const currentRow = document.querySelector(`#dailyLimit_${currentWeekday}_enable`)?.closest('tr');
+                    if (currentRow) {
+                        currentRow.style.backgroundColor = '#e8f0fe';
+                        currentRow.style.fontWeight = 'bold';
+                    }
+                }
+                
+                // 回填 split_time 开关
+                var splitToggle = document.getElementById('splitTimeToggle');
+                if (splitToggle) {
+                    splitToggle.checked = (time_data.split_time == 1);
+                }
+                // 构建各设备清空下拉列表
+                buildPerDevClearList(time_data.dev_time_list);
+            }
+
+            toggleModeContent();
+            addTimeValidation();
+        }
+
+        function validateDynamicTime() {
+            const startTimeInput = document.getElementById('startTime');
+            const endTimeInput = document.getElementById('endTime');
+            const dynamicErrorContainer = document.getElementById('dynamicErrorContainer');
+            dynamicErrorContainer.innerHTML = ''; 
+
+            const startTime = startTimeInput.value;
+            const endTime = endTimeInput.value;
+            let errorMessage = '';
+
+            if (!isValidTimeFormat(startTime) || !isValidTimeFormat(endTime)) {
+                errorMessage = '<%:Invalid time format, please enter a valid time format (HH:MM)%>';
+            } else if (startTime >= endTime) {
+                errorMessage = '<%:End time must be greater than start time%>';
+            }
+
+            if (errorMessage) {
+                const errorElement = document.createElement('div');
+                errorElement.className = 'error-message';
+                errorElement.style.color = 'red';
+                errorElement.style.fontSize = '12px';
+                errorElement.textContent = errorMessage;
+                dynamicErrorContainer.appendChild(errorElement);
+            }
+        }
+
+        function isValidTimeFormat(time) {
+            const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
+            return timePattern.test(time);
+        }
+
+        function toggleDailyLimitInputs(weekday) {
+            const enableCheckbox = document.getElementById(`dailyLimit_${weekday}_enable`);
+            const amInput = document.getElementById(`dailyLimit_${weekday}_am`);
+            const pmInput = document.getElementById(`dailyLimit_${weekday}_pm`);
+            
+            if (enableCheckbox && amInput && pmInput) {
+                const isEnabled = enableCheckbox.checked;
+                amInput.disabled = !isEnabled;
+                pmInput.disabled = !isEnabled;
+                
+                // Clear errors when disabled
+                if (!isEnabled) {
+                    const amError = document.getElementById(`dailyLimit_${weekday}_am_error`);
+                    const pmError = document.getElementById(`dailyLimit_${weekday}_pm_error`);
+                    if (amError) {
+                        amError.style.display = 'none';
+                        amError.textContent = '';
+                    }
+                    if (pmError) {
+                        pmError.style.display = 'none';
+                        pmError.textContent = '';
+                    }
                 }
             }
+        }
 
-            // 高亮当前星期几的行
-            const currentRow = document.querySelector(`#dailyLimit_${currentWeekday}_enable`)?.closest('tr');
-            if (currentRow) {
-                currentRow.style.backgroundColor = '#e8f0fe';
-                currentRow.style.fontWeight = 'bold';
+        function validateDailyLimit(weekday, period) {
+            const input = document.getElementById(`dailyLimit_${weekday}_${period}`);
+            const errorSpan = document.getElementById(`dailyLimit_${weekday}_${period}_error`);
+            
+            if (!input || !errorSpan) return;
+            
+            // Check if input is empty
+            if (input.value === '' || input.value === null || input.value === undefined) {
+                errorSpan.textContent = '<%:Value cannot be empty%>';
+                errorSpan.style.display = 'block';
+                input.style.borderColor = 'red';
+                return;
+            }
+            
+            const value = parseInt(input.value);
+            const maxMinutes = 720; // 12 hours = 720 minutes
+            
+            if (isNaN(value)) {
+                errorSpan.textContent = '<%:Please enter a valid number%>';
+                errorSpan.style.display = 'block';
+                input.style.borderColor = 'red';
+            } else if (value < 0) {
+                errorSpan.textContent = '<%:Value cannot be negative%>';
+                errorSpan.style.display = 'block';
+                input.style.borderColor = 'red';
+            } else if (value > maxMinutes) {
+                errorSpan.textContent = '<%:Value cannot exceed 720 minutes (12 hours)%>';
+                errorSpan.style.display = 'block';
+                input.style.borderColor = 'red';
+            } else {
+                errorSpan.style.display = 'none';
+                errorSpan.textContent = '';
+                input.style.borderColor = '';
             }
         }
 
-        // 回填 split_time 开关
-        var splitToggle = document.getElementById('splitTimeToggle');
-        if (splitToggle) {
-            splitToggle.checked = (time_data.split_time == 1);
-        }
-        // 构建各设备清空下拉列表
-        buildPerDevClearList(time_data.dev_time_list);
-    }
-
-    toggleModeContent();
-    addTimeValidation();
-}
-
-function validateDynamicTime() {
-    const startTimeInput = document.getElementById('startTime');
-    const endTimeInput = document.getElementById('endTime');
-    const dynamicErrorContainer = document.getElementById('dynamicErrorContainer');
-    dynamicErrorContainer.innerHTML = '';
-
-    const startTime = startTimeInput.value;
-    const endTime = endTimeInput.value;
-    let errorMessage = '';
-
-    if (!isValidTimeFormat(startTime) || !isValidTimeFormat(endTime)) {
-        errorMessage = '<%:Invalid time format, please enter a valid time format (HH:MM)%>';
-    } else if (startTime >= endTime) {
-        errorMessage = '<%:End time must be greater than start time%>';
-    }
-
-    if (errorMessage) {
-        const errorElement = document.createElement('div');
-        errorElement.className = 'error-message';
-        errorElement.style.color = 'red';
-        errorElement.style.fontSize = '12px';
-        errorElement.textContent = errorMessage;
-        dynamicErrorContainer.appendChild(errorElement);
-    }
-}
-
-function isValidTimeFormat(time) {
-    const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
-    return timePattern.test(time);
-}
-
-function toggleDailyLimitInputs(weekday) {
-    const enableCheckbox = document.getElementById(`dailyLimit_${weekday}_enable`);
-    const amInput = document.getElementById(`dailyLimit_${weekday}_am`);
-    const pmInput = document.getElementById(`dailyLimit_${weekday}_pm`);
-
-    if (enableCheckbox && amInput && pmInput) {
-        const isEnabled = enableCheckbox.checked;
-        amInput.disabled = !isEnabled;
-        pmInput.disabled = !isEnabled;
-
-        // Clear errors when disabled
-        if (!isEnabled) {
-            const amError = document.getElementById(`dailyLimit_${weekday}_am_error`);
-            const pmError = document.getElementById(`dailyLimit_${weekday}_pm_error`);
-            if (amError) {
-                amError.style.display = 'none';
-                amError.textContent = '';
-            }
-            if (pmError) {
-                pmError.style.display = 'none';
-                pmError.textContent = '';
-            }
-        }
-    }
-}
-
-function validateDailyLimit(weekday, period) {
-    const input = document.getElementById(`dailyLimit_${weekday}_${period}`);
-    const errorSpan = document.getElementById(`dailyLimit_${weekday}_${period}_error`);
-
-    if (!input || !errorSpan) return;
-
-    // Check if input is empty
-    if (input.value === '' || input.value === null || input.value === undefined) {
-        errorSpan.textContent = '<%:Value cannot be empty%>';
-        errorSpan.style.display = 'block';
-        input.style.borderColor = 'red';
-        return;
-    }
-
-    const value = parseInt(input.value);
-    const maxMinutes = 720; // 12 hours = 720 minutes
-
-    if (isNaN(value)) {
-        errorSpan.textContent = '<%:Please enter a valid number%>';
-        errorSpan.style.display = 'block';
-        input.style.borderColor = 'red';
-    } else if (value < 0) {
-        errorSpan.textContent = '<%:Value cannot be negative%>';
-        errorSpan.style.display = 'block';
-        input.style.borderColor = 'red';
-    } else if (value > maxMinutes) {
-        errorSpan.textContent = '<%:Value cannot exceed 720 minutes (12 hours)%>';
-        errorSpan.style.display = 'block';
-        input.style.borderColor = 'red';
-    } else {
-        errorSpan.style.display = 'none';
-        errorSpan.textContent = '';
-        input.style.borderColor = '';
-    }
-}
-
-window.onload = init_data;
+        window.onload = init_data;
 //]]></script>
 
-<div id="modal"
-     style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1000; justify-content: center; align-items: center;">
+<div id="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1000; justify-content: center; align-items: center;">
     <div style="background-color: rgba(0, 0, 0, 0.5); padding: 10px; border-radius: 5px; text-align: center; width: 100px; height: 70px; color: white; display: flex; justify-content: center; align-items: center;">
         <p style="margin: 0;color: white;"><%:Settings saved successfully%></p>
     </div>
 </div>
+
 
 
 <div class="cbi-section cbi-tblsection">
@@ -1030,323 +1001,267 @@ window.onload = init_data;
 
     <div style="max-width: 1000px; margin-left: 5px;padding: 5px;">
 
-        <div class="time-rules">
-            <h3><%:Time Rules%></h3>
+    <div class="time-rules">
+        <h3><%:Time Rules%></h3>
+        
+        <div id="currentTimeDisplay" style="margin-bottom: 12px; font-size: 13px; opacity: 0.7; display: none;">
+            <%:Current Time%>: <span id="currentTimeValue"></span>
+        </div>
+        
+        <div class="mode-selector" style="margin-bottom: 15px;">
+            <label><%:Mode Selection%>：</label>
+            <select id="timeMode" onchange="toggleModeContent()">
+                <option value="0"><%:Fixed Time%></option>
+                <option value="1"><%:Dynamic Time%></option>
+                <option value="2"><%:Daily Time Limit%></option>
+            </select>
+        </div>
 
-            <div id="currentTimeDisplay" style="margin-bottom: 12px; font-size: 13px; opacity: 0.7; display: none;">
-                <%:Current Time%>: <span id="currentTimeValue"></span>
-            </div>
-
-            <div class="mode-selector" style="margin-bottom: 15px;">
-                <label><%:Mode Selection%>：</label>
-                <select id="timeMode" onchange="toggleModeContent()">
-                    <option value="0"><%:Fixed Time%></option>
-                    <option value="1"><%:Dynamic Time%></option>
-                    <option value="2"><%:Daily Time Limit%></option>
-                </select>
-            </div>
-
-            <div id="staticTimeContent">
-                <table class="time-table">
-                    <thead>
+        <div id="staticTimeContent">
+            <table class="time-table">
+                <thead>
                     <tr>
                         <th><%:Weekdays%></th>
                         <th><%:Start Time%></th>
                         <th><%:End Time%></th>
                         <th><%:Actions%></th>
                     </tr>
-                    </thead>
-                    <tbody id="timeTableBody">
-                    </tbody>
+                </thead>
+                <tbody id="timeTableBody">
+                </tbody>
 
+               
+            </table>
+            <div id="errorContainer" style="color: red; font-size: 12px; margin-top: 10px;"></div>
+            <button class="add-time-btn" onclick="addTimeRow()"><%:Add Time Period%></button>
+        </div>
 
-                </table>
-                <div id="errorContainer" style="color: red; font-size: 12px; margin-top: 10px;"></div>
-                <button class="add-time-btn" onclick="addTimeRow()"><%:Add Time Period%></button>
+        <div id="dynamicTimeContent" style="display: none;">
+            <div style="opacity: 0.6; font-size: 13px; margin-bottom: 15px;">
+                <%:Dynamic time mode refers to dynamically adjusting app filter switches, such as allowing children to play games for 20 minutes after studying for 1 hour, automatically enabling filtering after exceeding entertainment time, and repeating the cycle.%>
             </div>
-
-            <div id="dynamicTimeContent" style="display: none;">
-                <div style="opacity: 0.6; font-size: 13px; margin-bottom: 15px;">
-                    <%:Dynamic time mode refers to dynamically adjusting app filter switches, such as allowing children
-                    to play games for 20 minutes after studying for 1 hour, automatically enabling filtering after
-                    exceeding entertainment time, and repeating the cycle.%>
+            
+            <div class="dynamic-time-settings">
+                <div class="setting-item">
+                    <label><%:Enable Duration Each Time (Study Time)%>:</label>
+                    <input type="number" id="denyTime" min="1" value="60">
+                    <span><%:minutes%></span>
                 </div>
-
-                <div class="dynamic-time-settings">
-                    <div class="setting-item">
-                        <label><%:Enable Duration Each Time (Study Time)%>:</label>
-                        <input type="number" id="denyTime" min="1" value="60">
-                        <span><%:minutes%></span>
+                <div class="setting-item" style="margin-bottom: 15px;">
+                    <label><%:Disable Duration Each Time (Break Time)%>:</label>
+                    <input type="number" id="allowTime" min="1" value="10">
+                    <span><%:minutes%></span>
+                </div>
+          
+                <div class="advanced-settings">
+                    <div class="advanced-toggle expanded" onclick="toggleAdvanced(this)">
+                        <span class="arrow"></span>
+                        <span><%:Advanced Settings%></span>
                     </div>
-                    <div class="setting-item" style="margin-bottom: 15px;">
-                        <label><%:Disable Duration Each Time (Break Time)%>:</label>
-                        <input type="number" id="allowTime" min="1" value="10">
-                        <span><%:minutes%></span>
-                    </div>
-
-                    <div class="advanced-settings">
-                        <div class="advanced-toggle expanded" onclick="toggleAdvanced(this)">
-                            <span class="arrow"></span>
-                            <span><%:Advanced Settings%></span>
+                    <div class="advanced-content expanded">
+                        <div class="weekday-selector" style="margin-bottom: 15px;">
+                            <label><%:Weekday Selection%>：</label>
+                            <div class="weekday-item"><input type="checkbox" name="weekday" value="1" onchange="clearDynamicWeekdayError()"> <%:Mon%></div>
+                            <div class="weekday-item"><input type="checkbox" name="weekday" value="2" onchange="clearDynamicWeekdayError()"> <%:Tue%></div>
+                            <div class="weekday-item"><input type="checkbox" name="weekday" value="3" onchange="clearDynamicWeekdayError()"> <%:Wed%></div>
+                            <div class="weekday-item"><input type="checkbox" name="weekday" value="4" onchange="clearDynamicWeekdayError()"> <%:Thur%></div>
+                            <div class="weekday-item"><input type="checkbox" name="weekday" value="5" onchange="clearDynamicWeekdayError()"> <%:Fri%></div>
+                            <div class="weekday-item"><input type="checkbox" name="weekday" value="6" onchange="clearDynamicWeekdayError()"> <%:Sat%></div>
+                            <div class="weekday-item"><input type="checkbox" name="weekday" value="0" onchange="clearDynamicWeekdayError()"> <%:Sun%></div>
                         </div>
-                        <div class="advanced-content expanded">
-                            <div class="weekday-selector" style="margin-bottom: 15px;">
-                                <label><%:Weekday Selection%>：</label>
-                                <div class="weekday-item"><input type="checkbox" name="weekday" value="1"
-                                                                 onchange="clearDynamicWeekdayError()"> <%:Mon%>
-                                </div>
-                                <div class="weekday-item"><input type="checkbox" name="weekday" value="2"
-                                                                 onchange="clearDynamicWeekdayError()"> <%:Tue%>
-                                </div>
-                                <div class="weekday-item"><input type="checkbox" name="weekday" value="3"
-                                                                 onchange="clearDynamicWeekdayError()"> <%:Wed%>
-                                </div>
-                                <div class="weekday-item"><input type="checkbox" name="weekday" value="4"
-                                                                 onchange="clearDynamicWeekdayError()"> <%:Thur%>
-                                </div>
-                                <div class="weekday-item"><input type="checkbox" name="weekday" value="5"
-                                                                 onchange="clearDynamicWeekdayError()"> <%:Fri%>
-                                </div>
-                                <div class="weekday-item"><input type="checkbox" name="weekday" value="6"
-                                                                 onchange="clearDynamicWeekdayError()"> <%:Sat%>
-                                </div>
-                                <div class="weekday-item"><input type="checkbox" name="weekday" value="0"
-                                                                 onchange="clearDynamicWeekdayError()"> <%:Sun%>
-                                </div>
-                            </div>
-                            <div id="dynamicWeekdayErrorContainer"
-                                 style="color: red; font-size: 12px; margin-top: 5px; display: none;"></div>
-
-                            <div class="setting-item">
-                                <label><%:Daily Study Time Range%>：</label>
-                                <input type="time" id="startTime" required style="margin-right: 5px;"
-                                       onchange="validateDynamicTime()">
-                                <span>-</span>
-                                <input type="time" id="endTime" required style="margin-left: 5px;"
-                                       onchange="validateDynamicTime()">
-                            </div>
-                            <div class="setting-item" style="opacity: 0.6; font-size: 12px; margin-top: 5px;">
-                                <span><%:This time range represents the daily school time period, which is a continuous time period. During this time period, filtering rules are dynamically enabled and disabled. Outside the time range, filtering is disabled by default.%></span>
-                            </div>
+                        <div id="dynamicWeekdayErrorContainer" style="color: red; font-size: 12px; margin-top: 5px; display: none;"></div>
+                        
+                        <div class="setting-item">
+                            <label><%:Daily Study Time Range%>：</label>
+                            <input type="time" id="startTime" required style="margin-right: 5px;" onchange="validateDynamicTime()">
+                            <span>-</span>
+                            <input type="time" id="endTime" required style="margin-left: 5px;" onchange="validateDynamicTime()">
+                        </div>
+                        <div class="setting-item" style="opacity: 0.6; font-size: 12px; margin-top: 5px;">
+                            <span><%:This time range represents the daily school time period, which is a continuous time period. During this time period, filtering rules are dynamically enabled and disabled. Outside the time range, filtering is disabled by default.%></span>
                         </div>
                     </div>
                 </div>
-                <div id="dynamicErrorContainer" style="color: red; font-size: 12px; margin-top: 10px;"></div>
             </div>
+            <div id="dynamicErrorContainer" style="color: red; font-size: 12px; margin-top: 10px;"></div>
+        </div>
 
-            <div id="dailyTimeContent" style="display: none;">
-                <div style="opacity: 0.6; font-size: 13px; margin-bottom: 15px;">
-                    <%:Daily time limit mode allows you to set a daily internet time limit for each weekday. Once the
-                    limit is reached, internet access will be restricted.%>
-                </div>
-
-                <!-- 当前上网时长信息显示 -->
-                <div id="currentTimeUsageInfo"
-                     style="border: 1px solid #1a73e8; border-radius: 5px; padding: 15px; margin-bottom: 15px; display: none;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <div style="font-weight: bold; color: #1a73e8; font-size: 14px;">
-                            <%:Today Time Usage%>
-                        </div>
-                        <div id="clearTimeDropdown" style="position: relative; display: inline-block;">
-                            <button type="button" class="clear-time-btn" onclick="toggleClearMenu(event)"><%:Clear%> ▾
-                            </button>
-                            <div id="clearMenuContent" class="clear-dropdown-content"
-                                 style="display: none; position: absolute; right: 0; background: #fff; border: 1px solid #ccc; border-radius: 4px; min-width: 220px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 100;">
-                                <a href="javascript:void(0)" onclick="clearActiveTime()"
-                                   style="display: block; padding: 8px 16px; color: #d9534f; text-decoration: none; border-bottom: 1px solid #eee;">
-                                    🧹 <%:Clear All Devices%>
-                                </a>
-                                <div id="perDevClearList" style="max-height: 200px; overflow-y: auto;"></div>
-                            </div>
+        <div id="dailyTimeContent" style="display: none;">
+            <div style="opacity: 0.6; font-size: 13px; margin-bottom: 15px;">
+                <%:Daily time limit mode allows you to set a daily internet time limit for each weekday. Once the limit is reached, internet access will be restricted.%>
+            </div>
+            
+            <!-- 当前上网时长信息显示 -->
+            <div id="currentTimeUsageInfo" style="border: 1px solid #1a73e8; border-radius: 5px; padding: 15px; margin-bottom: 15px; display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div style="font-weight: bold; color: #1a73e8; font-size: 14px;">
+                        <%:Today Time Usage%>
+                    </div>
+                    <div id="clearTimeDropdown" style="position: relative; display: inline-block;">
+                        <button type="button" class="clear-time-btn" onclick="toggleClearMenu(event)"><%:Clear%> ▾</button>
+                        <div id="clearMenuContent" class="clear-dropdown-content" style="display: none; position: absolute; right: 0; background: #fff; border: 1px solid #ccc; border-radius: 4px; min-width: 220px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 100;">
+                            <a href="javascript:void(0)" onclick="clearActiveTime()" style="display: block; padding: 8px 16px; color: #d9534f; text-decoration: none; border-bottom: 1px solid #eee;">
+                                🧹 <%:Clear All Devices%>
+                            </a>
+                            <div id="perDevClearList" style="max-height: 200px; overflow-y: auto;"></div>
                         </div>
                     </div>
-                    <div id="currentTimeUsageContent" style="font-size: 13px; line-height: 1.8;">
-                        <!-- 内容将通过JavaScript填充 -->
-                    </div>
                 </div>
-
-                <!-- 独立设备分时模式开关 -->
-                <div class="cbi-value" id="splitTimeContainer"
-                     style="margin: 10px 0; padding: 10px; background: #f9f9f9; border-radius: 5px;">
-                    <label class="cbi-value-title" style="font-weight: bold; font-size: 14px;">
-                        <%:独立设备时长模式%>
+                <div id="currentTimeUsageContent" style="font-size: 13px; line-height: 1.8;">
+                    <!-- 内容将通过JavaScript填充 -->
+                </div>
+            </div>
+            
+            <!-- 独立设备分时模式开关 -->
+            <div class="cbi-value" id="splitTimeContainer" style="margin: 10px 0; padding: 10px; background: #f9f9f9; border-radius: 5px;">
+                <label class="cbi-value-title" style="font-weight: bold; font-size: 14px;">
+                    <%:独立设备时长模式%>
+                </label>
+                <div class="cbi-value-field" style="margin-top: 5px;">
+                    <label class="switch">
+                        <input type="checkbox" id="splitTimeToggle" onchange="onSplitTimeChange()">
+                        <span class="slider"></span>
                     </label>
-                    <div class="cbi-value-field" style="margin-top: 5px;">
-                        <label class="switch">
-                            <input type="checkbox" id="splitTimeToggle" onchange="onSplitTimeChange()">
-                            <span class="slider"></span>
-                        </label>
-                        <span style="margin-left: 8px; opacity: 0.6; font-size: 12px;">
+                    <span style="margin-left: 8px; opacity: 0.6; font-size: 12px;">
                         <%:启用后，每台设备独立计时、独立封锁。默认关闭（共享总时长）。%>
                     </span>
-                    </div>
                 </div>
-
-                <table class="time-table" style="margin-top: 10px;">
-                    <thead>
+            </div>
+            
+            <table class="time-table" style="margin-top: 10px;">
+                <thead>
                     <tr>
                         <th style="width: 15%;"><%:Weekday%></th>
                         <th style="width: 15%;"><%:Enable%></th>
                         <th style="width: 35%;"><%:Morning Time Limit (minutes)%></th>
                         <th style="width: 35%;"><%:Afternoon Time Limit (minutes)%></th>
                     </tr>
-                    </thead>
-                    <tbody>
+                </thead>
+                <tbody>
                     <tr>
                         <td><%:Monday%></td>
-                        <td><label class="switch"><input type="checkbox" id="dailyLimit_1_enable"
-                                                         onchange="toggleDailyLimitInputs(1)"><span
-                                class="slider"></span></label></td>
+                        <td><label class="switch"><input type="checkbox" id="dailyLimit_1_enable" onchange="toggleDailyLimitInputs(1)"><span class="slider"></span></label></td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_1_am" min="0" max="720" value="0"
-                                       style="padding: 5px;" disabled onblur="validateDailyLimit(1, 'am')">
+                                <input type="number" id="dailyLimit_1_am" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(1, 'am')">
                                 <div id="dailyLimit_1_am_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_1_pm" min="0" max="720" value="0"
-                                       style="padding: 5px;" disabled onblur="validateDailyLimit(1, 'pm')">
+                                <input type="number" id="dailyLimit_1_pm" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(1, 'pm')">
                                 <div id="dailyLimit_1_pm_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                     </tr>
                     <tr>
                         <td><%:Tuesday%></td>
-                        <td><label class="switch"><input type="checkbox" id="dailyLimit_2_enable"
-                                                         onchange="toggleDailyLimitInputs(2)"><span
-                                class="slider"></span></label></td>
+                        <td><label class="switch"><input type="checkbox" id="dailyLimit_2_enable" onchange="toggleDailyLimitInputs(2)"><span class="slider"></span></label></td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_2_am" min="0" max="720" value="0"
-                                       style="padding: 5px;" disabled onblur="validateDailyLimit(2, 'am')">
+                                <input type="number" id="dailyLimit_2_am" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(2, 'am')">
                                 <div id="dailyLimit_2_am_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_2_pm" min="0" max="720" value="0"
-                                       style="padding: 5px;" disabled onblur="validateDailyLimit(2, 'pm')">
+                                <input type="number" id="dailyLimit_2_pm" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(2, 'pm')">
                                 <div id="dailyLimit_2_pm_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                     </tr>
                     <tr>
                         <td><%:Wednesday%></td>
-                        <td><label class="switch"><input type="checkbox" id="dailyLimit_3_enable"
-                                                         onchange="toggleDailyLimitInputs(3)"><span
-                                class="slider"></span></label></td>
+                        <td><label class="switch"><input type="checkbox" id="dailyLimit_3_enable" onchange="toggleDailyLimitInputs(3)"><span class="slider"></span></label></td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_3_am" min="0" max="720" value="0"
-                                       style="padding: 5px;" disabled onblur="validateDailyLimit(3, 'am')">
+                                <input type="number" id="dailyLimit_3_am" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(3, 'am')">
                                 <div id="dailyLimit_3_am_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_3_pm" min="0" max="720" value="0"
-                                       style="padding: 5px;" disabled onblur="validateDailyLimit(3, 'pm')">
+                                <input type="number" id="dailyLimit_3_pm" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(3, 'pm')">
                                 <div id="dailyLimit_3_pm_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                     </tr>
                     <tr>
                         <td><%:Thursday%></td>
-                        <td><label class="switch"><input type="checkbox" id="dailyLimit_4_enable"
-                                                         onchange="toggleDailyLimitInputs(4)"><span
-                                class="slider"></span></label></td>
+                        <td><label class="switch"><input type="checkbox" id="dailyLimit_4_enable" onchange="toggleDailyLimitInputs(4)"><span class="slider"></span></label></td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_4_am" min="0" max="720" value="0"
-                                       style="padding: 5px;" disabled onblur="validateDailyLimit(4, 'am')">
+                                <input type="number" id="dailyLimit_4_am" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(4, 'am')">
                                 <div id="dailyLimit_4_am_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_4_pm" min="0" max="720" value="0"
-                                       style="padding: 5px;" disabled onblur="validateDailyLimit(4, 'pm')">
+                                <input type="number" id="dailyLimit_4_pm" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(4, 'pm')">
                                 <div id="dailyLimit_4_pm_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                     </tr>
                     <tr>
                         <td><%:Friday%></td>
-                        <td><label class="switch"><input type="checkbox" id="dailyLimit_5_enable"
-                                                         onchange="toggleDailyLimitInputs(5)"><span
-                                class="slider"></span></label></td>
+                        <td><label class="switch"><input type="checkbox" id="dailyLimit_5_enable" onchange="toggleDailyLimitInputs(5)"><span class="slider"></span></label></td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_5_am" min="0" max="720" value="0"
-                                       style="padding: 5px;" disabled onblur="validateDailyLimit(5, 'am')">
+                                <input type="number" id="dailyLimit_5_am" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(5, 'am')">
                                 <div id="dailyLimit_5_am_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_5_pm" min="0" max="720" value="0"
-                                       style="padding: 5px;" disabled onblur="validateDailyLimit(5, 'pm')">
+                                <input type="number" id="dailyLimit_5_pm" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(5, 'pm')">
                                 <div id="dailyLimit_5_pm_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                     </tr>
                     <tr>
                         <td><%:Saturday%></td>
-                        <td><label class="switch"><input type="checkbox" id="dailyLimit_6_enable"
-                                                         onchange="toggleDailyLimitInputs(6)"><span
-                                class="slider"></span></label></td>
+                        <td><label class="switch"><input type="checkbox" id="dailyLimit_6_enable" onchange="toggleDailyLimitInputs(6)"><span class="slider"></span></label></td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_6_am" min="0" max="720" value="0"
-                                       style="padding: 5px;" disabled onblur="validateDailyLimit(6, 'am')">
+                                <input type="number" id="dailyLimit_6_am" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(6, 'am')">
                                 <div id="dailyLimit_6_am_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_6_pm" min="0" max="720" value="0"
-                                       style="padding: 5px;" disabled onblur="validateDailyLimit(6, 'pm')">
+                                <input type="number" id="dailyLimit_6_pm" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(6, 'pm')">
                                 <div id="dailyLimit_6_pm_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                     </tr>
                     <tr>
                         <td><%:Sunday%></td>
-                        <td><label class="switch"><input type="checkbox" id="dailyLimit_0_enable"
-                                                         onchange="toggleDailyLimitInputs(0)"><span
-                                class="slider"></span></label></td>
+                        <td><label class="switch"><input type="checkbox" id="dailyLimit_0_enable" onchange="toggleDailyLimitInputs(0)"><span class="slider"></span></label></td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_0_am" min="0" max="720" value="0"
-                                       style="padding: 5px;" disabled onblur="validateDailyLimit(0, 'am')">
+                                <input type="number" id="dailyLimit_0_am" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(0, 'am')">
                                 <div id="dailyLimit_0_am_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                         <td>
                             <div class="daily-limit-input-wrapper">
-                                <input type="number" id="dailyLimit_0_pm" min="0" max="720" value="0"
-                                       style="padding: 5px;" disabled onblur="validateDailyLimit(0, 'pm')">
+                                <input type="number" id="dailyLimit_0_pm" min="0" max="720" value="0" style="padding: 5px;" disabled onblur="validateDailyLimit(0, 'pm')">
                                 <div id="dailyLimit_0_pm_error" class="daily-limit-error"></div>
                             </div>
                         </td>
                     </tr>
-                    </tbody>
-                </table>
-                <div style="color: #000; font-size: 12px; margin-top: 10px;">
-                    <span><%:Note: Set to 0 to disable time limit for that period.%></span>
-                </div>
+                </tbody>
+            </table>
+            <div style="color: #000; font-size: 12px; margin-top: 10px;">
+                <span><%:Note: Set to 0 to disable time limit for that period.%></span>
             </div>
         </div>
+    </div>
 
-        <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
-            <button type="button" class="submit-button" onclick="location.reload()"
-                    style="background: transparent; color: #1a73e8; border: 1px solid var(--border-color-medium, #d1d5db);">
-                <%:Refresh%>
-            </button>
-            <button type="button" class="submit-button" onclick="submitHandle()"><%:Save%></button>
-        </div>
+    <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" class="submit-button" onclick="location.reload()" style="background: transparent; color: #1a73e8; border: 1px solid var(--border-color-medium, #d1d5db);"><%:Refresh%></button>
+        <button type="button" class="submit-button" onclick="submitHandle()"><%:Save%></button>
+    </div>
 
     </div>
 </div>
