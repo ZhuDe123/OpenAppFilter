@@ -10,6 +10,7 @@ For a detailed introduction, please visit [www.openappfilter.com](http://www.ope
 - Supports custom protocol signatures: Offers a high degree of flexibility and customization.
 - Supports installation as a plugin on OpenWrt systems: Compatible with all OpenWrt-enabled devices.You can download the plugin package corresponding to your architecture from the releases page.
 - **Traffic Statistics** (v6.2.0+): Complete traffic collection pipeline based on kernel netfilter hooks. Tracks per-device (IP/MAC) upload/download traffic, persists data to SQLite, and provides daily/monthly/yearly historical views with charts and device rankings.
+- **Per-Device Time Limit Control** (v6.1.8+): In Daily Time Limit mode (mode=2), enables independent per-device time tracking. Each device has its own time budget and gets blocked independently — device A exceeding its limit does not affect device B. Supports clearing time for a single device or all devices at once.
 
 ## Traffic Statistics
 
@@ -53,6 +54,46 @@ Packets → kernel netfilter FORWARD hook → real-time counters → ubus API
 
 ### Compatibility with Transparent Proxies
 If some devices route through a transparent proxy (e.g. mihomo), ensure their **default gateway is the main router** (running OAF). The main router should forward marked traffic to the proxy via policy routing. If devices use the proxy as their default gateway, the main router cannot see their original traffic for accounting.
+
+## Per-Device Time Limit Control
+
+Since v6.1.8, OAF supports **independent per-device time tracking** in Daily Time Limit mode (mode=2).
+
+### How It Works
+
+On the Time Configuration page, select "Daily Time Limit" mode, then toggle the "Split Time Mode" switch:
+
+- **Off (default)**: All selected devices share a total time budget. Exceeding the limit blocks all devices.
+- **On**: Each device tracks its own time independently. Device A exceeding its limit only blocks device A — device B is unaffected.
+
+### Clearing Time Usage
+
+- **Clear All**: Click the "Clear" button on the header bar, confirm, and all devices' time usage is reset.
+- **Clear Single Device**: Click the "Clear" button on each device's progress bar card to reset only that device's time (no confirmation dialog).
+
+### Data Flow
+
+```
+Web UI (time.htm)
+    ↓ POST /admin/network/oaf_split_clear_dev
+LuCI Controller (oaf_split.lua)
+    ↓ ubus appfilter.cmd
+User-space daemon (oafd)
+    ├─ af_split_check_period_limit() → per-device limit check
+    └─ fopen("/proc/sys/oaf/blocked_macs") → sync blocked state
+                ↓
+Kernel module (oaf.ko)
+    ├─ oaf_blocked_macs_handler → parse MAC commands
+    ├─ set af_client_info_t.period_blocked
+    └─ hook (app_filter_hook) → read period_blocked → NF_DROP
+```
+
+### UI Interaction
+
+| Page | Feature |
+|------|---------|
+| Time Config | Split mode toggle + per-device progress bar cards + Clear buttons |
+| App Filter Overview | Per-device progress bar cards + Clear buttons + "Monitoring" status |
 
 ## How to Compile
 1. Prepare a set of OpenWrt source code that has already been successfully compiled into firmware.
