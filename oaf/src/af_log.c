@@ -36,7 +36,7 @@ static int oaf_blocked_macs_handler(struct ctl_table *table, int write,
                                     void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	char kbuf[256];
-	int i;
+	int i, linelen;
 	unsigned char mac[MAC_ADDR_LEN];
 	char *line, *next;
 
@@ -45,29 +45,24 @@ static int oaf_blocked_macs_handler(struct ctl_table *table, int write,
 
 	if (*lenp >= sizeof(kbuf))
 		return -EINVAL;
-	
+
 	if (copy_from_user(kbuf, buffer, *lenp))
 		return -EFAULT;
-
 	kbuf[*lenp] = '\0';
 
-	// 逐行解析（支持一次写入多行）
 	line = kbuf;
 	while (line && *line) {
-		// 跳过多余空格/换行
 		while (*line == '\n' || *line == '\r')
 			line++;
 		if (!*line)
 			break;
 
-		// 找行尾
 		next = strchr(line, '\n');
 		if (next)
 			*next++ = '\0';
 
-		// 去除该行尾部的 \r
-		int linelen = strlen(line);
-		while (linelen > 0 && (line[linelen-1] == '\r'))
+		linelen = strlen(line);
+		while (linelen > 0 && line[linelen-1] == '\r')
 			line[--linelen] = '\0';
 
 		if (strcmp(line, "clear") == 0) {
@@ -84,40 +79,25 @@ static int oaf_blocked_macs_handler(struct ctl_table *table, int write,
 			continue;
 		}
 
-		if (strlen(line) < 18) {
-			line = next;
-			continue;
-		}
-
-		char op = line[0];
-		if (op != '+' && op != '-') {
-			line = next;
-			continue;
-		}
-
-		if (sscanf(line + 1, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-		           &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]) != 6) {
-			line = next;
-			continue;
-		}
-
-		AF_CLIENT_LOCK_W();
-		for (i = 0; i < MAX_AF_CLIENT_HASH_SIZE; i++) {
-			struct list_head *pos;
-			list_for_each(pos, &af_client_list_table[i]) {
-				af_client_info_t *c = list_entry(pos, af_client_info_t, hlist);
-				if (memcmp(c->mac, mac, MAC_ADDR_LEN) == 0) {
-					c->period_blocked = (op == '+') ? 1 : 0;
-					goto found_mac;
+		if (strlen(line) >= 18 && (line[0] == '+' || line[0] == '-')) {
+			if (sscanf(line + 1, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+			           &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]) == 6) {
+				int found = 0;
+				AF_CLIENT_LOCK_W();
+				for (i = 0; i < MAX_AF_CLIENT_HASH_SIZE && !found; i++) {
+					struct list_head *pos;
+					list_for_each(pos, &af_client_list_table[i]) {
+						af_client_info_t *c = list_entry(pos, af_client_info_t, hlist);
+						if (memcmp(c->mac, mac, MAC_ADDR_LEN) == 0) {
+							c->period_blocked = (line[0] == '+') ? 1 : 0;
+							found = 1;
+							break;
+						}
+					}
 				}
+				AF_CLIENT_UNLOCK_W();
 			}
 		}
-		AF_CLIENT_UNLOCK_W();
-		goto next_line;
-
-found_mac:
-		AF_CLIENT_UNLOCK_W();
-next_line:
 		line = next;
 	}
 	return 0;
@@ -278,7 +258,7 @@ static struct ctl_table oaf_table[] = {
 	{
 		.procname	= "blocked_macs",
 		.data		= NULL,
-		.maxlen 	= 64,
+		.maxlen 	= 256,
 		.mode		= 0222,
 		.proc_handler	= oaf_blocked_macs_handler,
 	},
