@@ -1492,7 +1492,9 @@ u_int32_t app_filter_hook_gateway_handle(struct sk_buff *skb, struct net_device 
 
 	// 独立设备时长封锁检查（需在锁内读取 period_blocked）
 	int split_blocked = 0;
+	int split_active = 0;   // split mode 且全局过滤开启
 	if (g_split_time && g_oaf_filter_enable) {
+		split_active = 1;
 		split_blocked = client->period_blocked;
 	}
 
@@ -1627,6 +1629,10 @@ u_int32_t app_filter_hook_gateway_handle(struct sk_buff *skb, struct net_device 
 	}
 	
 	if (g_oaf_filter_enable){
+		// split mode: 未超时设备跳过应用过滤，仅超时设备需受应用过滤限制
+		if (split_active && !split_blocked) {
+			goto EXIT;
+		}
 		if (match_app_filter_rule(flow.app_id, client))
 		{
 			ct->mark |= NF_DROP_BIT;
