@@ -143,6 +143,27 @@ cat /proc/sys/oaf/debug_blocked
 - **原因**：`last_reset_hour` 和 `last_reset_min` 是 static 变量，在遍历哈希表时被第一个设备设置为 12:00，后续设备不再满足条件
 - **当前状态**：不影响核心功能，后续可修复
 
+### Bug 10：误删 `LogLevel` enum 导致编译失败
+
+- **文件**：`open-app-filter/src/appfilter.h`
+- **症状**：编译报错 `'LOG_LEVEL_WARN' undeclared`、`unknown type name 'LogLevel'`
+- **原因**：在添加日志文件大小截断功能时，用整段替换把 `typedef enum { ... } LogLevel;` 和 `#define OAF_VERSION` 一起删除了
+- **修复**：加回 `LogLevel` enum 定义和 `OAF_VERSION`，并确保 `static int log_level = LOG_LEVEL_WARN;` 放在 enum 之后
+
+### Bug 11：`blocked device` 日志级别过高，每 10 秒刷屏
+
+- **文件**：`open-app-filter/src/oaf_split.c`
+- **症状**：`split sync: blocked device XX:XX:XX:XX:XX:XX` 每 10 秒打印一次
+- **原因**：日志级别设为 `LOG_INFO`，正常运行时也会输出
+- **修复**：改为 `LOG_DEBUG`，默认不输出。同时 `clear done` 和 `any_blocked` 也降为 `LOG_DEBUG`
+
+### Bug 12：`UNBLOCKED` 日志未触发
+
+- **文件**：`open-app-filter/src/oaf_split.c`
+- **症状**：清空设备时长后，日志未打印 `UNBLOCKED`
+- **原因**：状态变化日志检测放在 `af_split_check_period_limit` 中，但 `reset_one_user_today_active_time` 直接设 `period_blocked=0` 后再检查时已无变化
+- **修复**：`UNBLOCKED` 日志移到 `reset_one_user_today_active_time` 中，在 `period_blocked` 从 1 变 0 前打印
+
 ---
 
 ## 三、文件改动总览
@@ -165,3 +186,24 @@ cat /proc/sys/oaf/debug_blocked
 | LuCI | `luci-app-oaf/luasrc/view/admin_network/app_filter.htm` | 各设备进度条卡片、清空按钮、状态显示 |
 | 配置 | `open-app-filter/files/appfilter.config` | +option split_time '0' |
 | 配置 | `luci-app-oaf/root/etc/uci-defaults/95_time_daily_limit` | +split_time='0' |
+
+---
+
+## 四、最终日志行为
+
+| 日志内容 | 级别 | 触发条件 |
+|----------|------|----------|
+| `device XX BLOCKED (blocked=1, used=2min, limit=2min)` | `LOG_INFO` | 设备超时，period_blocked 0→1 | 
+| `device XX UNBLOCKED (cleared by user)` | `LOG_INFO` | 用户手动清空该设备时长 |
+| `device XX UNBLOCKED (blocked=0, used=0min, limit=2min)` | `LOG_INFO` | 天切换/跨午，自动解封 |
+| `split sync: blocked device XX:XX:XX:XX:XX:XX` | `LOG_DEBUG` | 每 10 秒同步时（调试才可见） |
+| `split sync: clear done` | `LOG_DEBUG` | 同步时（调试才可见） |
+| `split check: any_blocked=0/1` | `LOG_DEBUG` | 每 10 秒检查时（调试才可见） |
+| `split sync: fopen blocked_macs failed` | `LOG_WARN` | 写入 proc 失败（= 故障） |
+
+### 开启/关闭调试日志
+
+```bash
+echo 3 > /proc/sys/oaf/debug   # 开启 DEBUG（含 split sync 等）
+echo 2 > /proc/sys/oaf/debug   # 恢复 INFO（默认状态）
+```
