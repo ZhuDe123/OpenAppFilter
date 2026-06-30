@@ -73,8 +73,8 @@ int af_split_check_period_limit(af_time_config_t *t_config)
         while (node) {
             if (node->is_selected) {
                 u_int32_t current_active = is_morning ? node->today_am_active_time : node->today_pm_active_time;
-                // today_am/pm_active_time 以秒为单位, max_allowed_time 以分钟为单位
-                if (current_active >= (u_int32_t)(max_allowed_time * 60)) {
+                // today_am/pm_active_time 以分钟为单位, max_allowed_time 也是分钟
+                if (current_active >= (u_int32_t)max_allowed_time) {
                     node->period_blocked = 1;
                     any_blocked = 1;
                     LOG_DEBUG("split mode: device %s blocked (used=%ds, limit=%dmin)\n",
