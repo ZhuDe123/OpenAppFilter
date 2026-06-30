@@ -91,11 +91,11 @@ int af_split_check_period_limit(af_time_config_t *t_config)
     af_split_sync_blocked_macs();
 
     g_af_status.period_blocked = any_blocked;
-    g_af_status.used_time = 0;      // 独立模式下不适用汇总
+    g_af_status.used_time = 0;
     g_af_status.remain_time = 0;
     g_af_status.match_time = 1;
 
-    LOG_DEBUG("split mode: any_blocked=%d\n", any_blocked);
+    LOG_INFO("split check: any_blocked=%d\n", any_blocked);
     return any_blocked ? 1 : 0;
 }
 
@@ -117,9 +117,13 @@ void af_split_sync_blocked_macs(void)
     if (fp) {
         fprintf(fp, "clear");
         fclose(fp);
+        LOG_DEBUG("split sync: clear done\n");
+    } else {
+        LOG_WARN("split sync: fopen blocked_macs failed for clear\n");
+        return;  // proc 文件不可用，后续也必然失败
     }
 
-    // 逐个设备写入（每条一行）
+    // 逐个设备写入
     for (i = 0; i < MAX_DEV_NODE_HASH_SIZE; i++) {
         dev_node_t *node = dev_hash_table[i];
         while (node) {
@@ -128,6 +132,9 @@ void af_split_sync_blocked_macs(void)
                 if (fp) {
                     fprintf(fp, "+%s", node->mac);
                     fclose(fp);
+                    LOG_DEBUG("split sync: blocked device %s\n", node->mac);
+                } else {
+                    LOG_WARN("split sync: fopen blocked_macs failed for +%s\n", node->mac);
                 }
             }
             node = node->next;
