@@ -45,8 +45,7 @@ static int oaf_blocked_macs_handler(struct ctl_table *table, int write,
 	if (*lenp >= sizeof(kbuf))
 		return -EINVAL;
 	
-	if (copy_from_user(kbuf, buffer, *lenp))
-		return -EFAULT;
+	memcpy(kbuf, buffer, *lenp);
 
 	// 去除尾部换行/回车
 	while (*lenp > 0 && (kbuf[*lenp-1] == '\n' || kbuf[*lenp-1] == '\r'))
