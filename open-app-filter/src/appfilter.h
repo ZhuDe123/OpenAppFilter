@@ -11,6 +11,14 @@
 
 #define LOG_FILE_PATH "/tmp/log/appfilter.log"
 #define LOG_FILE_MAX_SIZE (512 * 1024)
+#define OAF_VERSION "6.1.8"
+
+typedef enum {
+    LOG_LEVEL_ERROR,
+	LOG_LEVEL_WARN,
+    LOG_LEVEL_INFO,
+    LOG_LEVEL_DEBUG
+} LogLevel;
 
 static int log_level = LOG_LEVEL_WARN;
 extern int current_log_level;
