@@ -1242,6 +1242,26 @@
             );
         }
 
+        function clearDevTime(mac, btn) {
+            if (!mac) return;
+            btn.disabled = true;
+            var origText = btn.textContent;
+            btn.textContent = '<%:Clearing...%>';
+            new XHR().post('<%=url('admin/network/oaf_split_clear_dev')%>',
+                { action: 'clear_active_time', mac: mac },
+                function(x, data) {
+                    btn.disabled = false;
+                    btn.textContent = '<%:Clear%>';
+                    if (data && data.code === 0) {
+                        // 刷新整个页面的状态
+                        updateRunStatus();
+                    } else {
+                        alert(data ? data.message : '<%:Failed%>');
+                    }
+                }
+            );
+        }
+
         function clearUserTime(mac, btn) {
             if (!mac) return;
             btn.disabled = true;
@@ -1391,7 +1411,10 @@
                                         var dPm = devItem.pm_used || 0;
                                         var blockIcon = devItem.blocked == 1 ? ' ⛔' : '';
                                         html += `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; border-left: 3px solid ${devItem.blocked == 1 ? '#d93025' : '#1a73e8'};">`;
-                                        html += `<div style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">${devName}${blockIcon}</div>`;
+                                        html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">`;
+                                        html += `<span style="font-weight: bold; font-size: 13px;">${devName}${blockIcon}</span>`;
+                                        html += `<button type="button" class="cbi-button cbi-button-reset" style="padding: 1px 8px; font-size: 11px;" onclick="clearDevTime('${devItem.mac}', this)"><%:Clear%></button>`;
+                                        html += `</div>`;
                                         html += buildProgressBar('<%:AM%>', dAm, amLimit);
                                         html += buildProgressBar('<%:PM%>', dPm, pmLimit);
                                         html += `</div>`;

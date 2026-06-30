@@ -853,8 +853,12 @@
                                     var dAm = devItem.am_used || 0;
                                     var dPm = devItem.pm_used || 0;
                                     var blockIcon = devItem.blocked == 1 ? ' ⛔' : '';
+                                    var macAttr = devItem.mac.replace(/'/g, '');
                                     html += `<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px; border-left: 3px solid ${devItem.blocked == 1 ? '#d93025' : '#1a73e8'};">`;
-                                    html += `<div style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">${devName}${blockIcon}</div>`;
+                                    html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">`;
+                                    html += `<span style="font-weight: bold; font-size: 13px;">${devName}${blockIcon}</span>`;
+                                    html += `<button type="button" class="cbi-button cbi-button-reset" style="padding: 1px 8px; font-size: 11px;" onclick="clearActiveTime('${macAttr}')"><%:Clear%></button>`;
+                                    html += `</div>`;
                                     html += buildProgressBar('<%:AM%>', dAm, amLimit);
                                     html += buildProgressBar('<%:PM%>', dPm, pmLimit);
                                     html += `</div>`;
@@ -884,8 +888,7 @@
                 if (splitToggle) {
                     splitToggle.checked = (time_data.split_time == 1);
                 }
-                // 构建各设备清空下拉列表
-                buildPerDevClearList(time_data.dev_time_list);
+            }
             }
 
             toggleModeContent();
@@ -1099,11 +1102,10 @@
                     </div>
                     <div id="clearTimeDropdown" style="position: relative; display: inline-block;">
                         <button type="button" class="clear-time-btn" onclick="toggleClearMenu(event)"><%:Clear%> ▾</button>
-                        <div id="clearMenuContent" class="clear-dropdown-content" style="display: none; position: absolute; right: 0; background: #fff; border: 1px solid #ccc; border-radius: 4px; min-width: 220px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 100;">
-                            <a href="javascript:void(0)" onclick="clearActiveTime()" style="display: block; padding: 8px 16px; color: #d9534f; text-decoration: none; border-bottom: 1px solid #eee;">
+                        <div id="clearMenuContent" class="clear-dropdown-content" style="display: none; position: absolute; right: 0; background: #fff; border: 1px solid #ccc; border-radius: 4px; min-width: 180px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 100;">
+                            <a href="javascript:void(0)" onclick="clearActiveTime()" style="display: block; padding: 8px 16px; color: #d9534f; text-decoration: none;">
                                 🧹 <%:Clear All Devices%>
                             </a>
-                            <div id="perDevClearList" style="max-height: 200px; overflow-y: auto;"></div>
                         </div>
                     </div>
                 </div>
